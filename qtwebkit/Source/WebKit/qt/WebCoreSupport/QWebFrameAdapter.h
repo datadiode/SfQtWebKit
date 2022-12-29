@@ -211,7 +211,6 @@ public:
     void setTextSizeMultiplier(qreal);
     qreal zoomFactor() const;
 
-	void GenerateMHTML(QString);
     void updateBackgroundRecursively(const QColor&);
 
     void cancelLoad();
@@ -225,9 +224,6 @@ public:
     void setDelegatesScrolling(bool /*resizesToContents*/);
 
     QWebPageAdapter* pageAdapter;
-
-	bool repeatTableHeader;
-	bool repeatTableFooter;
 
 // protected:
     bool allowsScrolling;

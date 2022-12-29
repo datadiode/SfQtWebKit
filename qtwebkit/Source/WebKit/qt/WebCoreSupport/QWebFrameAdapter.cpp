@@ -21,7 +21,6 @@
 #include "config.h"
 #include "QWebFrameAdapter.h"
 
-#include "PrintContext.h"
 #include "APICast.h"
 #include "Chrome.h"
 #include "ChromeClientQt.h"
@@ -329,15 +328,10 @@ QSize QWebFrameAdapter::contentsSize() const
 
 void QWebFrameAdapter::setZoomFactor(qreal factor)
 {
-    if (!(pageAdapter->settings->testAttribute(QWebSettings::ZoomTextOnly)))
+    if (pageAdapter->settings->testAttribute(QWebSettings::ZoomTextOnly))
         frame->setTextZoomFactor(factor);
     else
         frame->setPageZoomFactor(factor);
-}
-
-void QWebFrameAdapter::GenerateMHTML(QString m_str)
-{
-	frame->GenerateMIMEHtml(m_str);
 }
 
 void QWebFrameAdapter::setTextSizeMultiplier(qreal factor)
@@ -981,10 +975,6 @@ void QWebFrameAdapter::setViewportSize(const QSize& size)
     ASSERT(view);
     view->resize(size);
     view->adjustViewSize();
-	view->repeatTableHeader = repeatTableHeader;
-	view->repeatTableFooter = repeatTableFooter;
-	PrintContext printer(frame);
-	printer.setViewportToPdf(size);
 
     if (view->needsLayout())
         view->layout();

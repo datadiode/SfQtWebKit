@@ -35,7 +35,7 @@ namespace WebCore {
 // print in IE and Camino. This lets them use fewer sheets than they
 // would otherwise, which is presumably why other browsers do this.
 // Wide pages will be scaled down more than this.
-const float printingMinimumShrinkFactor = 1.0f;
+const float printingMinimumShrinkFactor = 1.25f;
 
 // This number determines how small we are willing to reduce the page content
 // in order to accommodate the widest line. If the page would have to be
@@ -55,15 +55,6 @@ PrintContext::~PrintContext()
         end();
 }
 
-/*!
-Set element to render
-*/
-WebCore::Element* renderElement;
-void PrintContext::setElementToDraw(WebCore::Element* element)
-{
-	renderElement = element;
-}
-
 void PrintContext::computePageRects(const FloatRect& printRect, float headerHeight, float footerHeight, float userScaleFactor, float& outPageHeight, bool allowHorizontalTiling)
 {
     m_pageRects.clear();
@@ -79,15 +70,7 @@ void PrintContext::computePageRects(const FloatRect& printRect, float headerHeig
 
     RenderView* view = m_frame->document()->renderView();
     const IntRect& documentRect = view->documentRect();
-	FloatSize pageSize;
-	if (renderElement != NULL)
-	{
-		IntRect renderElementBounds = renderElement->pixelSnappedBoundingBox();
-		pageSize = m_frame->resizePageRectsKeepingRatio(FloatSize(printRect.width(), printRect.height()), FloatSize(renderElementBounds.width(), renderElementBounds.height()));
-	}
-	else
-		pageSize = m_frame->resizePageRectsKeepingRatio(FloatSize(printRect.width(), printRect.height()), FloatSize(documentRect.width(), documentRect.height()));
-	
+    FloatSize pageSize = m_frame->resizePageRectsKeepingRatio(FloatSize(printRect.width(), printRect.height()), FloatSize(documentRect.width(), documentRect.height()));
     float pageWidth = pageSize.width();
     float pageHeight = pageSize.height();
 
@@ -121,14 +104,8 @@ void PrintContext::computePageRectsWithPageSizeInternal(const FloatSize& pageSiz
     int pageHeight = pageSizeInPixels.height();
 
     bool isHorizontal = view->style()->isHorizontalWritingMode();
-	int docLogicalHeight;
-	if (renderElement != NULL)
-	{
-		IntRect renderElementBounds = renderElement->pixelSnappedBoundingBox();
-		docLogicalHeight = isHorizontal ? renderElementBounds.height() : docRect.width();
-	}
-	else
-		docLogicalHeight = isHorizontal ? docRect.height() : docRect.width();
+
+    int docLogicalHeight = isHorizontal ? docRect.height() : docRect.width();
     int pageLogicalHeight = isHorizontal ? pageHeight : pageWidth;
     int pageLogicalWidth = isHorizontal ? pageWidth : pageHeight;
 
@@ -183,23 +160,16 @@ void PrintContext::computePageRectsWithPageSizeInternal(const FloatSize& pageSiz
     }
 }
 
-QSize viewportToPdf;
-
-void PrintContext::setViewportToPdf(QSize size){
-	viewportToPdf = size;
-}
-
-IntRect PrintContext::begin(float width, float height)
+void PrintContext::begin(float width, float height)
 {
     // This function can be called multiple times to adjust printing parameters without going back to screen mode.
     m_isPrinting = true;
 
-	width = (float)viewportToPdf.width();
     FloatSize originalPageSize = FloatSize(width, height);
     FloatSize minLayoutSize = m_frame->resizePageRectsKeepingRatio(originalPageSize, FloatSize(width * printingMinimumShrinkFactor, height * printingMinimumShrinkFactor));
 
     // This changes layout, so callers need to make sure that they don't paint to screen while in printing mode.
-   return m_frame->setPrinting(true, minLayoutSize, originalPageSize, printingMaximumShrinkFactor / printingMinimumShrinkFactor, AdjustViewSize);
+    m_frame->setPrinting(true, minLayoutSize, originalPageSize, printingMaximumShrinkFactor / printingMinimumShrinkFactor, AdjustViewSize);
 }
 
 float PrintContext::computeAutomaticScaleFactor(const FloatSize& availablePaperSize)
@@ -224,22 +194,12 @@ void PrintContext::spoolPage(GraphicsContext& ctx, int pageNumber, float width)
 {
     // FIXME: Not correct for vertical text.
     IntRect pageRect = m_pageRects[pageNumber];
-	if (renderElement != NULL)
-	{
-		IntRect renderElementBounds = renderElement->pixelSnappedBoundingBox();
-		if (pageNumber > 0)
-			pageRect = IntRect(renderElementBounds.x(), renderElementBounds.y() + pageRect.y(), pageRect.width(), renderElementBounds.height());
-		else 
-			pageRect = IntRect(renderElementBounds.x(), renderElementBounds.y(), pageRect.width(), renderElementBounds.height());
-	}
     float scale = width / pageRect.width();
 
     ctx.save();
     ctx.scale(FloatSize(scale, scale));
     ctx.translate(-pageRect.x(), -pageRect.y());
     ctx.clip(pageRect);
-	//Set element to render 
-	m_frame->view()->setNodeToDraw(renderElement);
     m_frame->view()->paintContents(&ctx, pageRect);
     ctx.restore();
 }

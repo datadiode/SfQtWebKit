@@ -115,6 +115,8 @@ public:
     void setNeedsLayout();
     void setViewportConstrainedObjectsNeedLayout();
 
+    bool needsStyleRecalcOrLayout(bool includeSubframes = true) const;
+
     bool needsFullRepaint() const { return m_doFullRepaint; }
 
 #if ENABLE(REQUEST_ANIMATION_FRAME)
@@ -180,7 +182,7 @@ public:
     void setShouldUpdateWhileOffscreen(bool);
     bool shouldUpdate(bool = false) const;
 
-    IntRect adjustViewSize();
+    void adjustViewSize();
     
     virtual IntRect windowClipRect(bool clipToContents = true) const;
     IntRect windowClipRectForFrameOwner(const HTMLFrameOwnerElement*, bool clipToLayerContents) const;
@@ -300,7 +302,7 @@ public:
     void enableAutoSizeMode(bool enable, const IntSize& minSize, const IntSize& maxSize);
 
     void forceLayout(bool allowSubtree = false);
-    IntRect forceLayoutForPagination(const FloatSize& pageSize, const FloatSize& originalPageSize, float maximumShrinkFactor, AdjustViewSizeOrNot);
+    void forceLayoutForPagination(const FloatSize& pageSize, const FloatSize& originalPageSize, float maximumShrinkFactor, AdjustViewSizeOrNot);
 
     // FIXME: This method is retained because of embedded WebViews in AppKit.  When a WebView is embedded inside
     // some enclosing view with auto-pagination, no call happens to resize the view.  The new pagination model
@@ -437,9 +439,6 @@ public:
     
     void setScrollPinningBehavior(ScrollPinningBehavior);
 
-	//Enable or disable repeated thead/tfoot.
-	bool repeatTableHeader;
-	bool repeatTableFooter;
 protected:
     virtual bool scrollContentsFastPath(const IntSize& scrollDelta, const IntRect& rectToScroll, const IntRect& clipRect);
     virtual void scrollContentsSlowPath(const IntRect& updateRect);

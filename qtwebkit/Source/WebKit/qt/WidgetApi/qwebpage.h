@@ -306,7 +306,6 @@ public:
 
     QSize viewportSize() const;
     void setViewportSize(const QSize &size) const;
-	void EnableRepeatedHeaderFooter(bool,bool);
     ViewportAttributes viewportAttributesForSize(const QSize& availableSize) const;
 
     QSize preferredContentsSize() const;

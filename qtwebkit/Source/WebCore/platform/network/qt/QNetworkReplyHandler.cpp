@@ -683,6 +683,10 @@ void QNetworkReplyHandler::forwardData()
 {
     ASSERT(m_replyWrapper && m_replyWrapper->reply() && !wasAborted() && !m_replyWrapper->wasRedirected());
 
+    // reply may be closed if reply->close() or reply->abort() is called
+    if (!m_replyWrapper->reply()->isReadable())
+        return;
+
     ResourceHandleClient* client = m_resourceHandle->client();
     if (!client)
         return;
@@ -766,8 +770,7 @@ QNetworkReply* QNetworkReplyHandler::sendNetworkRequest(QNetworkAccessManager* m
             return manager->get(m_request);
         case QNetworkAccessManager::PostOperation: {
             FormDataIODevice* postDevice = getIODevice(request);
-			QByteArray postData = postDevice->readAll();
-			QNetworkReply* result = manager->post(m_request, postData);
+            QNetworkReply* result = manager->post(m_request, postDevice);
             postDevice->setParent(result);
             return result;
         }

@@ -287,6 +287,7 @@ class CSSCalcBinaryOperation : public CSSCalcExpressionNode {
 public:
     static PassRefPtr<CSSCalcBinaryOperation> create(PassRefPtr<CSSCalcExpressionNode> leftSide, PassRefPtr<CSSCalcExpressionNode> rightSide, CalcOperator op)
     {
+        ASSERT(leftSide->category() != CalcOther && rightSide->category() != CalcOther);
         
         CalculationCategory newCategory = determineCategory(*leftSide, *rightSide, op);
 

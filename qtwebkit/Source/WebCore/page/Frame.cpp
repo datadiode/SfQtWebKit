@@ -29,7 +29,7 @@
 
 #include "config.h"
 #include "Frame.h"
-#include "MHTMLArchive.h"
+
 #include "AnimationController.h"
 #include "ApplyStyleCommand.h"
 #include "BackForwardController.h"
@@ -104,7 +104,6 @@
 #include <wtf/PassOwnPtr.h>
 #include <wtf/RefCountedLeakCounter.h>
 #include <wtf/StdLibExtras.h>
-#include "qstring.h"
 
 #if USE(ACCELERATED_COMPOSITING)
 #include "RenderLayerCompositor.h"
@@ -505,20 +504,19 @@ String Frame::matchLabelsAgainstElement(const Vector<String>& labels, Element* e
     
     return matchLabelsAgainstString(labels, element->getAttribute(idAttr));
 }
- 
-IntRect Frame::setPrinting(bool printing, const FloatSize& pageSize, const FloatSize& originalPageSize, float maximumShrinkRatio, AdjustViewSizeOrNot shouldAdjustViewSize)
+
+void Frame::setPrinting(bool printing, const FloatSize& pageSize, const FloatSize& originalPageSize, float maximumShrinkRatio, AdjustViewSizeOrNot shouldAdjustViewSize)
 {
     // In setting printing, we should not validate resources already cached for the document.
     // See https://bugs.webkit.org/show_bug.cgi?id=43704
     ResourceCacheValidationSuppressor validationSuppressor(m_doc->cachedResourceLoader());
-    view()->setMediaType("media");
+
     m_doc->setPrinting(printing);
     view()->adjustMediaTypeForPrinting(printing);
 
     m_doc->styleResolverChanged(RecalcStyleImmediately);
-    IntRect totalPageLayoutSize;
     if (shouldUsePrintingLayout()) {
-       totalPageLayoutSize = view()->forceLayoutForPagination(pageSize, originalPageSize, maximumShrinkRatio, shouldAdjustViewSize);
+        view()->forceLayoutForPagination(pageSize, originalPageSize, maximumShrinkRatio, shouldAdjustViewSize);
     } else {
         view()->forceLayout();
         if (shouldAdjustViewSize == AdjustViewSize)
@@ -528,7 +526,6 @@ IntRect Frame::setPrinting(bool printing, const FloatSize& pageSize, const Float
     // Subframes of the one we're printing don't lay out to the page size.
     for (RefPtr<Frame> child = tree()->firstChild(); child; child = child->tree()->nextSibling())
         child->setPrinting(printing, FloatSize(), FloatSize(), 0, shouldAdjustViewSize);
-    return totalPageLayoutSize;
 }
 
 bool Frame::shouldUsePrintingLayout() const
@@ -894,24 +891,6 @@ void Frame::setPageZoomFactor(float factor)
 void Frame::setTextZoomFactor(float factor)
 {
     setPageAndTextZoomFactors(m_pageZoomFactor, factor);
-}
-
-void Frame::GenerateMIMEHtml(QString m_str)
-{
-	Page* page = this->page();
-	RefPtr<SharedBuffer> mhtmlData = SharedBuffer::create();
-	mhtmlData =  MHTMLArchive::generateMHTMLData(page);
-	
-	std::string mhtmlFileName = m_str.toStdString();
-	const char * filePath = mhtmlFileName.c_str();
-	const char * data = mhtmlData->data();
-	FILE * pFile;
-	pFile = fopen(filePath, "w");
-	if (pFile != NULL)
-	{
-		fputs(data, pFile);
-		fclose(pFile);
-	}
 }
 
 void Frame::setPageAndTextZoomFactors(float pageZoomFactor, float textZoomFactor)

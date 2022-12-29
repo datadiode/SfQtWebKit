@@ -37,7 +37,6 @@
 #include "ScrollTypes.h"
 #include "UserScriptTypes.h"
 #include <wtf/RefCounted.h>
-#include "SharedBuffer.h"
 
 #if PLATFORM(WIN)
 #include "FrameWin.h"
@@ -143,7 +142,7 @@ namespace WebCore {
 
         Settings* settings() const; // can be NULL
 
-        IntRect setPrinting(bool printing, const FloatSize& pageSize, const FloatSize& originalPageSize, float maximumShrinkRatio, AdjustViewSizeOrNot);
+        void setPrinting(bool printing, const FloatSize& pageSize, const FloatSize& originalPageSize, float maximumShrinkRatio, AdjustViewSizeOrNot);
         bool shouldUsePrintingLayout() const;
         FloatSize resizePageRectsKeepingRatio(const FloatSize& originalSize, const FloatSize& expectedSize);
 
@@ -158,7 +157,6 @@ namespace WebCore {
         float textZoomFactor() const { return m_textZoomFactor; }
         void setPageAndTextZoomFactors(float pageZoomFactor, float textZoomFactor);
 
-		void GenerateMIMEHtml(QString);
         // Scale factor of this frame with respect to the container.
         float frameScaleFactor() const;
 
@@ -201,7 +199,6 @@ namespace WebCore {
 
         bool isURLAllowed(const KURL&) const;
 
-		RefPtr<FrameView> m_view;
     // ========
 
     private:
@@ -217,6 +214,7 @@ namespace WebCore {
         mutable NavigationScheduler m_navigationScheduler;
 
         HTMLFrameOwnerElement* m_ownerElement;
+        RefPtr<FrameView> m_view;
         RefPtr<Document> m_doc;
 
         OwnPtr<ScriptController> m_script;

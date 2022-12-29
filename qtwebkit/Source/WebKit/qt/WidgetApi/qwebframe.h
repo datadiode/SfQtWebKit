@@ -27,8 +27,7 @@
 #include <QtGui/qicon.h>
 #include <QtNetwork/qnetworkaccessmanager.h>
 #include <QtWebKit/qwebkitglobal.h>
-#include <Windows.h>
-#include <QtWebKit/qwebelement.h>
+
 QT_BEGIN_NAMESPACE
 class QRect;
 class QPoint;
@@ -40,9 +39,7 @@ class QNetworkRequest;
 class QRegion;
 class QPrinter;
 QT_END_NAMESPACE
-#ifndef QT_NO_PRINTER
-class QWebPrinterPrivate;
-#endif
+
 class QWebNetworkRequest;
 class QWebFrameAdapter;
 class QWebFramePrivate;
@@ -61,7 +58,6 @@ namespace WebCore {
     class FrameLoaderClientQt;
     class ChromeClientQt;
     class TextureMapperLayerClientQt;
-    class IntRect;
 }
 class QWebFrameData;
 class QWebHitTestResultPrivate;
@@ -111,14 +107,6 @@ private:
     friend class QWebPagePrivate;
     friend class QWebPage;
 };
-#ifndef QT_NO_PRINTER
-class QWebPrinter {
-public:
-    QWebPrinter();
-    ~QWebPrinter();
-    QWebPrinterPrivate * d;
-};
-#endif
 
 class QWEBKITWIDGETS_EXPORT QWebFrame : public QObject {
     Q_OBJECT
@@ -154,7 +142,7 @@ public:
     void addToJavaScriptWindowObject(const QString &name, QObject *object, ValueOwnership ownership = QtOwnership);
     QString toHtml() const;
     QString toPlainText() const;
-    QString m_str;
+
     QString title() const;
     void setUrl(const QUrl &url);
     QUrl url() const;
@@ -162,7 +150,7 @@ public:
     QUrl baseUrl() const;
     QIcon icon() const;
     QMultiMap<QString, QString> metaData() const;
-    QWebPrinter pe;
+
     QString frameName() const;
 
     QWebFrame *parentFrame() const;
@@ -198,8 +186,6 @@ public:
     void setTextSizeMultiplier(qreal factor);
     qreal textSizeMultiplier() const;
 
-	void createMhtmlDocument();
-	void  setElementToRender(WebCore::Element*);
     qreal zoomFactor() const;
     void setZoomFactor(qreal factor);
 
@@ -225,8 +211,6 @@ public Q_SLOTS:
     QVariant evaluateJavaScript(const QString& scriptSource);
 #ifndef QT_NO_PRINTER
     void print(QPrinter *printer) const;
-    QPair<int, QRectF> GetHyperlinkLocation(QPrinter *printer,const QWebElement & e);
-    void SetPrintContext(QPrinter *printer);
 #endif
 
 Q_SIGNALS:
@@ -252,8 +236,6 @@ private:
     friend class QWebPage;
     friend class QWebPagePrivate;
     friend class QWebFramePrivate;
-    friend class QWebPrinterPrivate;
-    friend class QWebPrinter;
     friend class DumpRenderTreeSupportQt;
     friend class WebCore::WidgetPrivate;
     friend class WebCore::FrameLoaderClientQt;

@@ -23,7 +23,6 @@
 
 #include <wtf/Forward.h>
 #include <wtf/Vector.h>
-#include <qsize.h>
 
 namespace WebCore {
 
@@ -57,14 +56,12 @@ public:
 
     float computeAutomaticScaleFactor(const FloatSize& availablePaperSize);
 
-	void setViewportToPdf(QSize);
     // Enter print mode, updating layout for new page size.
     // This function can be called multiple times to apply new print options without going back to screen mode.
-    IntRect begin(float width, float height = 0);
+    void begin(float width, float height = 0);
 
     // FIXME: eliminate width argument.
     void spoolPage(GraphicsContext& ctx, int pageNumber, float width);
-	void setElementToDraw(WebCore::Element*);
 
     void spoolRect(GraphicsContext& ctx, const IntRect&);
 
@@ -81,9 +78,10 @@ public:
     // The height of the graphics context should be
     // (pageSizeInPixels.height() + 1) * number-of-pages - 1
     static void spoolAllPagesWithBoundaries(Frame*, GraphicsContext&, const FloatSize& pageSizeInPixels);
-	Vector<IntRect> m_pageRects;
+
 protected:
     Frame* m_frame;
+    Vector<IntRect> m_pageRects;
 
 private:
     void computePageRectsWithPageSizeInternal(const FloatSize& pageSizeInPixels, bool allowHorizontalTiling);

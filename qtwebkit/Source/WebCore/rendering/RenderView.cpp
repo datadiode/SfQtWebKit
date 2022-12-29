@@ -136,8 +136,6 @@ bool RenderView::isChildAllowed(RenderObject* child, RenderStyle*) const
 
 void RenderView::layoutContent(const LayoutState& state)
 {
-	repeatTableHeader = m_frameView->repeatTableHeader;
-	repeatTableFooter = m_frameView->repeatTableFooter;
     UNUSED_PARAM(state);
     ASSERT(needsLayout());
 

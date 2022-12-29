@@ -149,27 +149,27 @@ PassRefPtr<SharedBuffer> MHTMLArchive::generateMHTMLData(Page* page, bool useBin
     pageSerializer.serialize(page);
 
     String boundary = generateRandomBoundary();
-    String endOfResourceBoundary = makeString("--", boundary, "\n");
+    String endOfResourceBoundary = makeString("--", boundary, "\r\n");
 
     GregorianDateTime now;
     now.setToCurrentLocalTime();
     String dateString = makeRFC2822DateString(now.weekDay(), now.monthDay(), now.month(), now.year(), now.hour(), now.minute(), now.second(), now.utcOffset() / 60);
 
     StringBuilder stringBuilder;
-    stringBuilder.append("From: <Saved by WebKit>\n");
+    stringBuilder.append("From: <Saved by WebKit>\r\n");
     stringBuilder.append("Subject: ");
     // We replace non ASCII characters with '?' characters to match IE's behavior.
     stringBuilder.append(replaceNonPrintableCharacters(page->mainFrame()->document()->title()));
-    stringBuilder.append("\nDate: ");
+    stringBuilder.append("\r\nDate: ");
     stringBuilder.append(dateString);
-    stringBuilder.append("\nMIME-Version: 1.0\n");
-    stringBuilder.append("Content-Type: multipart/related;\n");
+    stringBuilder.append("\r\nMIME-Version: 1.0\r\n");
+    stringBuilder.append("Content-Type: multipart/related;\r\n");
     stringBuilder.append("\ttype=\"");
     stringBuilder.append(page->mainFrame()->document()->suggestedMIMEType());
-    stringBuilder.append("\";\n");
+    stringBuilder.append("\";\r\n");
     stringBuilder.append("\tboundary=\"");
     stringBuilder.append(boundary);
-    stringBuilder.append("\"\n\n");
+    stringBuilder.append("\"\r\n\r\n");
 
     // We use utf8() below instead of ascii() as ascii() replaces CRLFs with ?? (we still only have put ASCII characters in it).
     ASSERT(stringBuilder.toString().containsOnlyASCII());
@@ -193,11 +193,11 @@ PassRefPtr<SharedBuffer> MHTMLArchive::generateMHTMLData(Page* page, bool useBin
         else
             contentEncoding = base64;
 
-        stringBuilder.append("\nContent-Transfer-Encoding: ");
+        stringBuilder.append("\r\nContent-Transfer-Encoding: ");
         stringBuilder.append(contentEncoding);
-        stringBuilder.append("\nContent-Location: ");
+        stringBuilder.append("\r\nContent-Location: ");
         stringBuilder.append(resource.url);
-        stringBuilder.append("\n\n");
+        stringBuilder.append("\r\n\r\n");
 
         asciiString = stringBuilder.toString().utf8();
         mhtmlData->append(asciiString.data(), asciiString.length());
@@ -215,10 +215,9 @@ PassRefPtr<SharedBuffer> MHTMLArchive::generateMHTMLData(Page* page, bool useBin
             size_t dataLength = resource.data->size();
             Vector<char> encodedData;
             if (!strcmp(contentEncoding, quotedPrintable)) {
-				mhtmlData->append("<!DOCTYPE html>", 15);
                 quotedPrintableEncode(data, dataLength, encodedData);
                 mhtmlData->append(encodedData.data(), encodedData.size());
-                mhtmlData->append("\n", 1);
+                mhtmlData->append("\r\n", 2);
             } else {
                 ASSERT(!strcmp(contentEncoding, base64));
                 // We are not specifying insertLFs = true below as it would cut the lines with LFs and MHTML requires CRLFs.
@@ -229,14 +228,14 @@ PassRefPtr<SharedBuffer> MHTMLArchive::generateMHTMLData(Page* page, bool useBin
                 do {
                     size_t lineLength = std::min(encodedDataLength - index, maximumLineLength);
                     mhtmlData->append(encodedData.data() + index, lineLength);
-                    mhtmlData->append("\n\n", 1);
+                    mhtmlData->append("\r\n", 2);
                     index += maximumLineLength;
                 } while (index < encodedDataLength);
             }
         }
     }
 
-    asciiString = makeString("--", boundary, "--\n\n").utf8();
+    asciiString = makeString("--", boundary, "--\r\n").utf8();
     mhtmlData->append(asciiString.data(), asciiString.length());
 
     return mhtmlData.release();
