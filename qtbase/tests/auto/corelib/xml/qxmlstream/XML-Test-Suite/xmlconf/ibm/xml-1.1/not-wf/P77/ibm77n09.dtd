@@ -1,2 +1,2 @@
-<!ELEMENT root (#PCDATA)>
+<!ELEMENT root (#PCDATA)>
 <!--  bad comment -->

@@ -1,5 +1,5 @@
-<![INCLUDE [
-<!ENTITY % e SYSTEM "ibm77n21.ent">
-<!ELEMENT root ANY>
-%e;
-]]>
+<![INCLUDE [
+<!ENTITY % e SYSTEM "ibm77n21.ent">
+<!ELEMENT root ANY>
+%e;
+]]>

@@ -1,4 +1,4 @@
-<![INCLUDE [
-<!ELEMENT ῿node EMPTY>
-<!ELEMENT root ANY>
+<![INCLUDE [
+<!ELEMENT ῿node EMPTY>
+<!ELEMENT root ANY>
 ]]>
