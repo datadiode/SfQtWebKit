@@ -63,16 +63,12 @@ public:
         : fontEngine(0)
         , hintingPreference(QFont::PreferDefaultHinting)
         , thread(0)
-        , widthCacheSize(0)
-        , widthCache(0)
     {}
 
     QRawFontPrivate(const QRawFontPrivate &other)
         : fontEngine(other.fontEngine)
         , hintingPreference(other.hintingPreference)
         , thread(other.thread)
-        , widthCacheSize(0)
-        , widthCache(0)
     {
 #ifndef QT_NO_DEBUG
         Q_ASSERT(fontEngine == 0 || thread == QThread::currentThread());
@@ -135,13 +131,10 @@ public:
                               QFont::HintingPreference hintingPreference);
 
     static QRawFontPrivate *get(const QRawFont &font) { return font.d.data(); }
-	void calcWidthForGlyph(QGlyphLayout *glyphs, qreal em);
 
     QFontEngine *fontEngine;
     QFont::HintingPreference hintingPreference;
     QAtomicInt ref;
-    mutable unsigned char *widthCache;
-    mutable uint widthCacheSize;
 
 private:
     QThread *thread;

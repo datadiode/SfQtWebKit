@@ -2,5 +2,5 @@
 <!ELEMENT book ANY>
 ]>
 <!-- IllegalChar #xdfff
- in p02: ï¿½ï¿½ -->
+ in p02: í¿¿ -->
 <book/>

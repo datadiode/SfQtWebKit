@@ -18,7 +18,7 @@
      <property name="text" >
       <string>A label.
 One new line.
-Another new line.
+Another new line.
 Last line.</string>
      </property>
     </widget>

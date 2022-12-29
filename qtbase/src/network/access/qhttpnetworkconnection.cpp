@@ -470,13 +470,10 @@ bool QHttpNetworkConnectionPrivate::handleAuthenticateChallenge(QAbstractSocket 
                 copyCredentials(i,  auth, isProxy);
             }
         } else if (priv->phase == QAuthenticatorPrivate::Start) {
-            emit reply->authenticationRequired(reply->request(), auth);
-            if(auth->user().isEmpty() && auth->password().isEmpty()){
             // If the url's authenticator has a 'user' set we will end up here (phase is only set to 'Done' by
             // parseHttpResponse above if 'user' is empty). So if credentials were supplied with the request,
             // such as in the case of an XMLHttpRequest, this is our only opportunity to cache them.
             emit reply->cacheCredentials(reply->request(), auth);
-            }
         }
         // - Changing values in QAuthenticator will reset the 'phase'. Therefore if it is still "Done"
         //   then nothing was filled in by the user or the cache
@@ -921,7 +918,6 @@ void QHttpNetworkConnectionPrivate::_q_startNextRequest()
     for (int i = 0; i < channelCount; ++i) {
         if (channels[i].resendCurrent && (channels[i].state != QHttpNetworkConnectionChannel::ClosingState)) {
             channels[i].resendCurrent = false;
-            channels[i].state = QHttpNetworkConnectionChannel::IdleState;
 
             // if this is not possible, error will be emitted and connection terminated
             if (!channels[i].resetUploadData())
