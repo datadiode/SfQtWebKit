@@ -1,6 +1,6 @@
-<!DOCTYPE book [
-<!ELEMENT book ANY>
-]>
-<!-- IllegalChar #xdfff
- in p02: í¿¿ -->
-<book/>
+<!DOCTYPE book [
+<!ELEMENT book ANY>
+]>
+<!-- IllegalChar #xdfff
+ in p02: ï¿½ï¿½ -->
+<book/>

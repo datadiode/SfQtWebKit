@@ -1,4 +1,4 @@
-<!DOCTYPE doc [
-<!ENTITY e "foo='bar'">
-]>
-<doc &e;></doc>
+<!DOCTYPE doc [
+<!ENTITY e "foo='bar'">
+]>
+<doc &e;></doc>

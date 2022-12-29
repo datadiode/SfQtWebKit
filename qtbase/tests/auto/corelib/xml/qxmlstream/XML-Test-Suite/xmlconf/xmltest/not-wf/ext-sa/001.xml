@@ -1,4 +1,4 @@
-<!DOCTYPE doc [
-<!ENTITY e SYSTEM "001.ent">
-]>
-<doc>&e;</doc>
+<!DOCTYPE doc [
+<!ENTITY e SYSTEM "001.ent">
+]>
+<doc>&e;</doc>

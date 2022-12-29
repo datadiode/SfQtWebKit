@@ -1,8 +1,8 @@
-<!DOCTYPE root 
-[
-<!ELEMENT root (#PCDATA)>
-<!--* recursive PE reference -->
-<!ENTITY % paaa "&bbb;">
-<!ENTITY bbb "%paaa;">
-]>
-<root/>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!--* recursive PE reference -->
+<!ENTITY % paaa "&bbb;">
+<!ENTITY bbb "%paaa;">
+]>
+<root/>

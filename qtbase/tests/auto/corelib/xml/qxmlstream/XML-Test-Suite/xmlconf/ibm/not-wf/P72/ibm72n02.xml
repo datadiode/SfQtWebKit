@@ -1,9 +1,9 @@
-<!DOCTYPE root 
-[
-<!ELEMENT root (#PCDATA)>
-<!ATTLIST root att CDATA #IMPLIED>
-<!--* missing name  *-->
-<!ENTITY % "<!-- comments -->">
-%paaa;
-]>
-<root/>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+<!--* missing name  *-->
+<!ENTITY % "<!-- comments -->">
+%paaa;
+]>
+<root/>

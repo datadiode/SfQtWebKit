@@ -1,6 +1,6 @@
-<?xml version="1.0"standalone="yes" ?>
-<!DOCTYPE animal [
-   <!ELEMENT animal EMPTY>
-]>
-<!-- Missing a S in SDDecl -->
-<animal/>
+<?xml version="1.0"standalone="yes" ?>
+<!DOCTYPE animal [
+   <!ELEMENT animal EMPTY>
+]>
+<!-- Missing a S in SDDecl -->
+<animal/>

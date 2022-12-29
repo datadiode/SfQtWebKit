@@ -1,6 +1,6 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc EMPTY>
-<!ATTLIST doc att(a|b) #IMPLIED>
-]>
-<doc/>
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!ATTLIST doc att(a|b) #IMPLIED>
+]>
+<doc/>
