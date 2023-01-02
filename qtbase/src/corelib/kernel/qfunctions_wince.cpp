@@ -36,7 +36,11 @@
 #include <winbase.h>
 #include <kfuncs.h>
 #include <stdio.h>
+#if _WIN32_WCE <= 0x600
 #include <altcecrt.h>
+#else
+#include <fcntl.h>
+#endif
 
 #include "qplatformdefs.h"
 #include "qfunctions_wince.h"
@@ -93,7 +97,9 @@ FILETIME qt_wince_time_tToFt( time_t tt )
 }
 
 // File I/O ---------------------------------------------------------
+#if _WIN32_WCE <= 0x600
 int errno = 0;
+#endif
 
 int qt_wince__getdrive( void )
 {
@@ -277,12 +283,12 @@ int qt_wince_SetErrorMode(int newValue)
     return result;
 }
 
-bool qt_wince__chmod(const char *file, int mode)
+int qt_wince__chmod(const char *file, int mode)
 {
     return _wchmod( reinterpret_cast<const wchar_t *> (QString::fromLatin1(file).utf16()), mode);
 }
 
-bool qt_wince__wchmod(const wchar_t *file, int mode)
+int qt_wince__wchmod(const wchar_t *file, int mode)
 {
     BOOL success = FALSE;
     // ### Does not work properly, what about just adding one property?

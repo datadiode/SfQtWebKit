@@ -47,29 +47,21 @@
 #include <ctype.h>
 #include <time.h>
 #include <crtdefs.h>
+#if _WIN32_WCE <= 0x600
 #include <altcecrt.h>
+#else
+#undef min
+#undef max
+#endif
 #include <winsock.h>
 #include <ceconfig.h>
-
-QT_BEGIN_NAMESPACE
-
-#ifdef QT_BUILD_CORE_LIB
-#endif
-
-QT_END_NAMESPACE
 
 // The standard SDK misses this define...
 #define _control87 _controlfp
 
-#if !defined __cplusplus
-#define bool int
-#define true 1
-#define false 0
-#endif
-
 // Environment ------------------------------------------------------
-errno_t qt_wince_getenv_s(size_t*, char*, size_t, const char*);
-errno_t qt_wince__putenv_s(const char*, const char*);
+Q_CORE_EXPORT errno_t qt_wince_getenv_s(size_t*, char*, size_t, const char*);
+Q_CORE_EXPORT errno_t qt_wince__putenv_s(const char*, const char*);
 
 #ifdef __cplusplus // have this as tiff plugin is written in C
 extern "C" {
@@ -80,7 +72,7 @@ extern "C" {
 #endif
 
 // Environment ------------------------------------------------------
-int qt_wince__getpid(void);
+Q_CORE_EXPORT int qt_wince__getpid(void);
 
 
 // Time -------------------------------------------------------------
@@ -99,8 +91,8 @@ struct tm {
 };
 #endif // _TM_DEFINED
 
-FILETIME qt_wince_time_tToFt( time_t tt );
-time_t qt_wince_ftToTime_t( const FILETIME ft );
+Q_CORE_EXPORT FILETIME qt_wince_time_tToFt( time_t tt );
+Q_CORE_EXPORT time_t qt_wince_ftToTime_t( const FILETIME ft );
 
 // File I/O ---------------------------------------------------------
 #define _O_RDONLY       0x0001
@@ -160,24 +152,26 @@ struct stat
 #endif
 
 typedef int mode_t;
+#if _WIN32_WCE <= 0x600
 extern int errno;
+#endif
 
-int     qt_wince__getdrive( void );
-int     qt_wince__waccess( const wchar_t *path, int pmode );
-int     qt_wince__wopen( const wchar_t *filename, int oflag, int pmode );
-long    qt_wince__lseek( int handle, long offset, int origin );
-int     qt_wince__read( int handle, void *buffer, unsigned int count );
-int     qt_wince__write( int handle, const void *buffer, unsigned int count );
-int     qt_wince__close( int handle );
-FILE   *qt_wince__fdopen(int handle, const char *mode);
-FILE   *qt_wince_fdopen(int handle, const char *mode);
-void    qt_wince_rewind( FILE *stream );
-int     qt_wince___fileno(FILE *);
-FILE   *qt_wince_tmpfile( void );
+Q_CORE_EXPORT int     qt_wince__getdrive( void );
+Q_CORE_EXPORT int     qt_wince__waccess( const wchar_t *path, int pmode );
+Q_CORE_EXPORT int     qt_wince__wopen( const wchar_t *filename, int oflag, int pmode );
+Q_CORE_EXPORT long    qt_wince__lseek( int handle, long offset, int origin );
+Q_CORE_EXPORT int     qt_wince__read( int handle, void *buffer, unsigned int count );
+Q_CORE_EXPORT int     qt_wince__write( int handle, const void *buffer, unsigned int count );
+Q_CORE_EXPORT int     qt_wince__close( int handle );
+Q_CORE_EXPORT FILE   *qt_wince__fdopen(int handle, const char *mode);
+Q_CORE_EXPORT FILE   *qt_wince_fdopen(int handle, const char *mode);
+Q_CORE_EXPORT void    qt_wince_rewind( FILE *stream );
+Q_CORE_EXPORT int     qt_wince___fileno(FILE *);
+Q_CORE_EXPORT FILE   *qt_wince_tmpfile( void );
 
 //For zlib we need these helper functions, but they break the build when
 //set globally, so just set them for zlib use
-#ifdef ZLIB_H
+#ifdef ZLIB_INTERNAL
 #define open qt_wince_open
 #define close qt_wince__close
 #define lseek qt_wince__lseek
@@ -185,18 +179,18 @@ FILE   *qt_wince_tmpfile( void );
 #define write qt_wince__write
 #endif
 
-int qt_wince__mkdir(const char *dirname);
-int qt_wince__rmdir(const char *dirname);
-int qt_wince__access( const char *path, int pmode );
-int qt_wince__rename( const char *oldname, const char *newname );
-int qt_wince__remove( const char *name );
+Q_CORE_EXPORT int qt_wince__mkdir(const char *dirname);
+Q_CORE_EXPORT int qt_wince__rmdir(const char *dirname);
+Q_CORE_EXPORT int qt_wince__access( const char *path, int pmode );
+Q_CORE_EXPORT int qt_wince__rename( const char *oldname, const char *newname );
+Q_CORE_EXPORT int qt_wince__remove( const char *name );
 #ifdef __cplusplus
-int qt_wince_open( const char *filename, int oflag, int pmode = 0 );
+Q_CORE_EXPORT int qt_wince_open( const char *filename, int oflag, int pmode = 0 );
 #else
-int qt_wince_open( const char *filename, int oflag, int pmode );
+Q_CORE_EXPORT int qt_wince_open( const char *filename, int oflag, int pmode );
 #endif
-int qt_wince_stat( const char *path, struct stat *buffer );
-int qt_wince__fstat( int handle, struct stat *buffer);
+Q_CORE_EXPORT int qt_wince_stat( const char *path, struct stat *buffer );
+Q_CORE_EXPORT int qt_wince__fstat( int handle, struct stat *buffer);
 
 #define SEM_FAILCRITICALERRORS 0x0001
 #define SEM_NOOPENFILEERRORBOX 0x0002
@@ -205,11 +199,11 @@ int qt_wince_SetErrorMode(int);
 #define CoInitialize(x) CoInitializeEx(x, COINIT_MULTITHREADED)
 #endif
 
-bool qt_wince__chmod(const char *file, int mode);
-bool qt_wince__wchmod(const wchar_t *file, int mode);
+Q_CORE_EXPORT int qt_wince__chmod(const char *file, int mode);
+Q_CORE_EXPORT int qt_wince__wchmod(const wchar_t *file, int mode);
 
 QT_WARNING_DISABLE_MSVC(4273)
-HANDLE qt_wince_CreateFileA(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
+Q_CORE_EXPORT HANDLE qt_wince_CreateFileA(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
 
 // Printer ----------------------------------------------------------
 #define ETO_GLYPH_INDEX     0x0010
@@ -221,7 +215,7 @@ HANDLE qt_wince_CreateFileA(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, 
 #ifndef SM_CYCURSOR
 #  define SM_CYCURSOR      14
 #endif
-BOOL qt_wince_SetWindowOrgEx( HDC hdc, int X, int Y, LPPOINT lpPoint );
+Q_CORE_EXPORT BOOL qt_wince_SetWindowOrgEx( HDC hdc, int X, int Y, LPPOINT lpPoint );
 
 // Other stuff ------------------------------------------------------
 #define MWMO_ALERTABLE 0x0002
@@ -229,26 +223,26 @@ BOOL qt_wince_SetWindowOrgEx( HDC hdc, int X, int Y, LPPOINT lpPoint );
 #define CREATE_NO_WINDOW        2
 #define CF_HDROP                15
 
-void *qt_wince_calloc(size_t num, size_t size);
+Q_CORE_EXPORT void *qt_wince_calloc(size_t num, size_t size);
 #if !defined(TLS_OUT_OF_INDEXES)
 #  define TLS_OUT_OF_INDEXES 0xffffffff
 #endif
-DWORD qt_wince_GetThreadLocale(void);
+Q_CORE_EXPORT DWORD qt_wince_GetThreadLocale(void);
 
-HANDLE qt_wince__beginthread(void( *start_address )( void * ), unsigned stack_size, void *arglist);
+Q_CORE_EXPORT HANDLE qt_wince__beginthread(void( *start_address )( void * ), unsigned stack_size, void *arglist);
 
-unsigned long qt_wince__beginthreadex( void *security,
+Q_CORE_EXPORT unsigned long qt_wince__beginthreadex( void *security,
                               unsigned stack_size,
                               unsigned (__stdcall *start_address)(void *),
                               void *arglist,
                               unsigned initflag,
                               unsigned *thrdaddr );
-void qt_wince__endthreadex(unsigned nExitCode);
+Q_CORE_EXPORT void qt_wince__endthreadex(unsigned nExitCode);
 
 
 // bsearch is needed for building the tiff plugin
 // otherwise it could go into qguifunctions_wce
-void *qt_wince_bsearch(const void *key,
+Q_CORE_EXPORT void *qt_wince_bsearch(const void *key,
                const void *base,
                size_t num,
                size_t size,
@@ -437,8 +431,8 @@ generate_inline_return_func0(tmpfile, FILE *)
 generate_inline_return_func2(_rename, int, const char *, const char *)
 generate_inline_return_func1(_remove, int, const char *)
 generate_inline_return_func1(SetErrorMode, int, int)
-generate_inline_return_func2(_chmod, bool, const char *, int)
-generate_inline_return_func2(_wchmod, bool, const wchar_t *, int)
+generate_inline_return_func2(_chmod, int, const char *, int)
+generate_inline_return_func2(_wchmod, int, const wchar_t *, int)
 generate_inline_return_func7(CreateFileA, HANDLE, LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE)
 generate_inline_return_func4(SetWindowOrgEx, BOOL, HDC, int, int, LPPOINT)
 generate_inline_return_func2(calloc, void *, size_t, size_t)
