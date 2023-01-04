@@ -200,6 +200,7 @@ Q_SIGNALS:
     void modeChanged(QSslSocket::SslMode newMode);
     void encryptedBytesWritten(qint64 totalBytes);
     void preSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator *authenticator);
+    void newSessionTicketReceived();
 
 protected:
     qint64 readData(char *data, qint64 maxlen) Q_DECL_OVERRIDE;

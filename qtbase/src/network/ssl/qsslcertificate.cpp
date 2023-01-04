@@ -1,31 +1,37 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing/
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the QtNetwork module of the Qt Toolkit.
 **
-** $QT_BEGIN_LICENSE:LGPL21$
+** $QT_BEGIN_LICENSE:LGPL$
 ** Commercial License Usage
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
 ** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see http://www.qt.io/terms-conditions. For further
-** information use the contact form at http://www.qt.io/contact-us.
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file. Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 3 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL3 included in the
+** packaging of this file. Please review the following information to
+** ensure the GNU Lesser General Public License version 3 requirements
+** will be met: https://www.gnu.org/licenses/lgpl-3.0.html.
 **
-** As a special exception, The Qt Company gives you certain additional
-** rights. These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 2.0 or (at your option) the GNU General
+** Public license version 3 or any later version approved by the KDE Free
+** Qt Foundation. The licenses are as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL2 and LICENSE.GPL3
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-2.0.html and
+** https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ** $QT_END_LICENSE$
 **
@@ -115,7 +121,6 @@
 #ifdef QT_SECURETRANSPORT
 #include "qsslsocket_mac_p.h"
 #endif
-
 #include "qssl_p.h"
 #include "qsslcertificate.h"
 #include "qsslcertificate_p.h"
@@ -136,8 +141,12 @@ QT_BEGIN_NAMESPACE
 QSslCertificate::QSslCertificate(QIODevice *device, QSsl::EncodingFormat format)
     : d(new QSslCertificatePrivate)
 {
+#ifndef QT_NO_OPENSSL
     QSslSocketPrivate::ensureInitialized();
+    if (device && QSslSocket::supportsSsl())
+#else
     if (device)
+#endif
         d->init(device->readAll(), format);
 }
 
@@ -150,8 +159,11 @@ QSslCertificate::QSslCertificate(QIODevice *device, QSsl::EncodingFormat format)
 QSslCertificate::QSslCertificate(const QByteArray &data, QSsl::EncodingFormat format)
     : d(new QSslCertificatePrivate)
 {
+#ifndef QT_NO_OPENSSL
     QSslSocketPrivate::ensureInitialized();
-    d->init(data, format);
+    if (QSslSocket::supportsSsl())
+#endif
+        d->init(data, format);
 }
 
 /*!
@@ -399,7 +411,7 @@ QByteArray QSslCertificate::digest(QCryptographicHash::Algorithm algorithm) cons
 /*!
     \fn Qt::HANDLE QSslCertificate::handle() const
     Returns a pointer to the native certificate handle, if there is
-    one, or a null pointer otherwise.
+    one, else \nullptr.
 
     You can use this handle, together with the native API, to access
     extended information about the certificate.
@@ -446,8 +458,8 @@ QByteArray QSslCertificate::digest(QCryptographicHash::Algorithm algorithm) cons
 
 /*!
     Searches all files in the \a path for certificates encoded in the
-    specified \a format and returns them in a list. \e must be a file or a
-    pattern matching one or more files, as specified by \a syntax.
+    specified \a format and returns them in a list. \a path must be a file
+    or a pattern matching one or more files, as specified by \a syntax.
 
     Example:
 
@@ -476,8 +488,9 @@ QList<QSslCertificate> QSslCertificate::fromPath(const QString &path,
     if (pos != -1) {
         // there was a special char in the path so cut of the part containing that char.
         pathPrefix = pathPrefix.left(pos);
-        if (pathPrefix.contains(QLatin1Char('/')))
-            pathPrefix = pathPrefix.left(pathPrefix.lastIndexOf(QLatin1Char('/')));
+        const int lastIndexOfSlash = pathPrefix.lastIndexOf(QLatin1Char('/'));
+        if (lastIndexOfSlash != -1)
+            pathPrefix = pathPrefix.left(lastIndexOfSlash);
         else
             pathPrefix.clear();
     } else {
@@ -672,6 +685,56 @@ QByteArray QSslCertificatePrivate::subjectInfoToString(QSslCertificate::SubjectI
 }
 
 /*!
+    \since 5.12
+
+    Returns a name that describes the issuer. It returns the QSslCertificate::CommonName
+    if available, otherwise falls back to the first QSslCertificate::Organization or the
+    first QSslCertificate::OrganizationalUnitName.
+
+    \sa issuerInfo()
+*/
+QString QSslCertificate::issuerDisplayName() const
+{
+    QStringList names;
+    names = issuerInfo(QSslCertificate::CommonName);
+    if (!names.isEmpty())
+        return names.first();
+    names = issuerInfo(QSslCertificate::Organization);
+    if (!names.isEmpty())
+        return names.first();
+    names = issuerInfo(QSslCertificate::OrganizationalUnitName);
+    if (!names.isEmpty())
+        return names.first();
+
+    return QString();
+}
+
+/*!
+    \since 5.12
+
+    Returns a name that describes the subject. It returns the QSslCertificate::CommonName
+    if available, otherwise falls back to the first QSslCertificate::Organization or the
+    first QSslCertificate::OrganizationalUnitName.
+
+    \sa subjectInfo()
+*/
+QString QSslCertificate::subjectDisplayName() const
+{
+    QStringList names;
+    names = subjectInfo(QSslCertificate::CommonName);
+    if (!names.isEmpty())
+        return names.first();
+    names = subjectInfo(QSslCertificate::Organization);
+    if (!names.isEmpty())
+        return names.first();
+    names = subjectInfo(QSslCertificate::OrganizationalUnitName);
+    if (!names.isEmpty())
+        return names.first();
+
+    return QString();
+}
+
+/*!
     \fn uint qHash(const QSslCertificate &key, uint seed)
 
     Returns the hash value for the \a key, using \a seed to seed the calculation.
@@ -688,10 +751,10 @@ QDebug operator<<(QDebug debug, const QSslCertificate &certificate)
           << certificate.version()
           << ", " << certificate.serialNumber()
           << ", " << certificate.digest().toBase64()
-          << ", " << certificate.issuerInfo(QSslCertificate::Organization)
-          << ", " << certificate.subjectInfo(QSslCertificate::Organization)
+          << ", " << certificate.issuerDisplayName()
+          << ", " << certificate.subjectDisplayName()
           << ", " << certificate.subjectAlternativeNames()
-#ifndef QT_NO_DATESTRING
+#if QT_SUPPORTS(datestring)
           << ", " << certificate.effectiveDate()
           << ", " << certificate.expiryDate()
 #endif

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2011 Richard J. Moore <rich@kde.org>
+** Copyright (C) 2015 Mikkel Krautz <mikkel@krautz.dk>
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the QtNetwork module of the Qt Toolkit.
@@ -37,51 +37,21 @@
 **
 ****************************************************************************/
 
-#ifndef QSSLCERTIFICATEEXTENSION_H
-#define QSSLCERTIFICATEEXTENSION_H
 
-#include <QtCore/qnamespace.h>
-#include <QtCore/qshareddata.h>
-#include <QtCore/qstring.h>
-#include <QtCore/qvariant.h>
+#include "qssldiffiehellmanparameters.h"
+#include "qssldiffiehellmanparameters_p.h"
+
+#include <QtCore/qglobal.h>
+#include <QtCore/qbytearray.h>
 
 QT_BEGIN_NAMESPACE
 
-
-#ifndef QT_NO_SSL
-
-class QSslCertificateExtensionPrivate;
-
-class Q_NETWORK_EXPORT QSslCertificateExtension
+void QSslDiffieHellmanParametersPrivate::decodeDer(const QByteArray &)
 {
-public:
-    QSslCertificateExtension();
-    QSslCertificateExtension(const QSslCertificateExtension &other);
-    ~QSslCertificateExtension();
+}
 
-    QSslCertificateExtension &operator=(const QSslCertificateExtension &other);
-
-    void swap(QSslCertificateExtension &other) Q_DECL_NOTHROW { qSwap(d, other.d); }
-
-    QString oid() const;
-    QString name() const;
-    QVariant value() const;
-    bool isCritical() const;
-
-    bool isSupported() const;
-
-private:
-    friend class QSslCertificatePrivate;
-    QSharedDataPointer<QSslCertificateExtensionPrivate> d;
-};
-
-Q_DECLARE_SHARED(QSslCertificateExtension)
-
-#endif // QT_NO_SSL
+void QSslDiffieHellmanParametersPrivate::decodePem(const QByteArray &)
+{
+}
 
 QT_END_NAMESPACE
-
-
-#endif // QSSLCERTIFICATEEXTENSION_H
-
-

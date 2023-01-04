@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2011 Richard J. Moore <rich@kde.org>
+** Copyright (C) 2015 Mikkel Krautz <mikkel@krautz.dk>
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the QtNetwork module of the Qt Toolkit.
@@ -37,51 +37,41 @@
 **
 ****************************************************************************/
 
-#ifndef QSSLCERTIFICATEEXTENSION_H
-#define QSSLCERTIFICATEEXTENSION_H
 
-#include <QtCore/qnamespace.h>
-#include <QtCore/qshareddata.h>
-#include <QtCore/qstring.h>
-#include <QtCore/qvariant.h>
+#ifndef QSSLDIFFIEHELLMANPARAMETERS_P_H
+#define QSSLDIFFIEHELLMANPARAMETERS_P_H
+
+//
+//  W A R N I N G
+//  -------------
+//
+// This file is not part of the Qt API.  It exists for the convenience
+// of qssldiffiehellmanparameters.cpp.  This header file may change from version to version
+// without notice, or even be removed.
+//
+// We mean it.
+//
+
+#include <QSharedData>
+
+#include "qsslkey.h"
+#include "qssldiffiehellmanparameters.h"
+#include "qsslsocket_p.h" // includes wincrypt.h
 
 QT_BEGIN_NAMESPACE
 
-
-#ifndef QT_NO_SSL
-
-class QSslCertificateExtensionPrivate;
-
-class Q_NETWORK_EXPORT QSslCertificateExtension
+class QSslDiffieHellmanParametersPrivate : public QSharedData
 {
 public:
-    QSslCertificateExtension();
-    QSslCertificateExtension(const QSslCertificateExtension &other);
-    ~QSslCertificateExtension();
+    QSslDiffieHellmanParametersPrivate() : error(QSslDiffieHellmanParameters::NoError) {};
 
-    QSslCertificateExtension &operator=(const QSslCertificateExtension &other);
+    void decodeDer(const QByteArray &der);
+    void decodePem(const QByteArray &pem);
 
-    void swap(QSslCertificateExtension &other) Q_DECL_NOTHROW { qSwap(d, other.d); }
-
-    QString oid() const;
-    QString name() const;
-    QVariant value() const;
-    bool isCritical() const;
-
-    bool isSupported() const;
-
-private:
-    friend class QSslCertificatePrivate;
-    QSharedDataPointer<QSslCertificateExtensionPrivate> d;
+    QSslDiffieHellmanParameters::Error error;
+    QByteArray derData;
 };
-
-Q_DECLARE_SHARED(QSslCertificateExtension)
-
-#endif // QT_NO_SSL
 
 QT_END_NAMESPACE
 
-
-#endif // QSSLCERTIFICATEEXTENSION_H
-
-
+#endif // QSSLDIFFIEHELLMANPARAMETERS_P_H

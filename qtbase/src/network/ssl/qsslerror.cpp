@@ -1,31 +1,37 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing/
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the QtNetwork module of the Qt Toolkit.
 **
-** $QT_BEGIN_LICENSE:LGPL21$
+** $QT_BEGIN_LICENSE:LGPL$
 ** Commercial License Usage
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
 ** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see http://www.qt.io/terms-conditions. For further
-** information use the contact form at http://www.qt.io/contact-us.
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file. Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 3 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL3 included in the
+** packaging of this file. Please review the following information to
+** ensure the GNU Lesser General Public License version 3 requirements
+** will be met: https://www.gnu.org/licenses/lgpl-3.0.html.
 **
-** As a special exception, The Qt Company gives you certain additional
-** rights. These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 2.0 or (at your option) the GNU General
+** Public license version 3 or any later version approved by the KDE Free
+** Qt Foundation. The licenses are as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL2 and LICENSE.GPL3
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-2.0.html and
+** https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ** $QT_END_LICENSE$
 **
@@ -80,6 +86,19 @@
     \value UnspecifiedError
     \value NoSslSupport
     \value CertificateBlacklisted
+    \value CertificateStatusUnknown
+    \value OcspNoResponseFound
+    \value OcspMalformedRequest
+    \value OcspMalformedResponse
+    \value OcspInternalError
+    \value OcspTryLater
+    \value OcspSigRequred
+    \value OcspUnauthorized
+    \value OcspResponseCannotBeTrusted
+    \value OcspResponseCertIdUnknown
+    \value OcspResponseExpired
+    \value OcspStatusUnknown
+
 
     \sa QSslError::errorString()
 */
@@ -99,13 +118,13 @@ public:
     QSslCertificate certificate;
 };
 
+// RVCT compiler in debug build does not like about default values in const-
+// So as an workaround we define all constructor overloads here explicitly
 /*!
     Constructs a QSslError object with no error and default certificate.
 
 */
 
-// RVCT compiler in debug build does not like about default values in const-
-// So as an workaround we define all constructor overloads here explicitly
 QSslError::QSslError()
     : d(new QSslErrorPrivate)
 {
@@ -285,6 +304,39 @@ QString QSslError::errorString() const
         break;
     case CertificateBlacklisted:
         errStr = QSslSocket::tr("The peer certificate is blacklisted");
+        break;
+    case OcspNoResponseFound:
+        errStr = QSslSocket::tr("No OCSP status response found");
+        break;
+    case OcspMalformedRequest:
+        errStr = QSslSocket::tr("The OCSP status request had invalid syntax");
+        break;
+    case OcspMalformedResponse:
+        errStr = QSslSocket::tr("OCSP response contains an unexpected number of SingleResponse structures");
+        break;
+    case OcspInternalError:
+        errStr = QSslSocket::tr("OCSP responder reached an inconsistent internal state");
+        break;
+    case OcspTryLater:
+        errStr = QSslSocket::tr("OCSP responder was unable to return a status for the requested certificate");
+        break;
+    case OcspSigRequred:
+        errStr = QSslSocket::tr("The server requires the client to sign the OCSP request in order to construct a response");
+        break;
+    case OcspUnauthorized:
+        errStr = QSslSocket::tr("The client is not authorized to request OCSP status from this server");
+        break;
+    case OcspResponseCannotBeTrusted:
+        errStr = QSslSocket::tr("OCSP responder's identity cannot be verified");
+        break;
+    case OcspResponseCertIdUnknown:
+        errStr = QSslSocket::tr("The identity of a certificate in an OCSP response cannot be established");
+        break;
+    case OcspResponseExpired:
+        errStr = QSslSocket::tr("The certificate status response has expired");
+        break;
+    case OcspStatusUnknown:
+        errStr = QSslSocket::tr("The certificate's status is unknown");
         break;
     default:
         errStr = QSslSocket::tr("Unknown error");

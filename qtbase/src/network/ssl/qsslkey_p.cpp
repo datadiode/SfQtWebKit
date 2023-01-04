@@ -1,31 +1,37 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing/
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the QtNetwork module of the Qt Toolkit.
 **
-** $QT_BEGIN_LICENSE:LGPL21$
+** $QT_BEGIN_LICENSE:LGPL$
 ** Commercial License Usage
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
 ** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see http://www.qt.io/terms-conditions. For further
-** information use the contact form at http://www.qt.io/contact-us.
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file. Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 3 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL3 included in the
+** packaging of this file. Please review the following information to
+** ensure the GNU Lesser General Public License version 3 requirements
+** will be met: https://www.gnu.org/licenses/lgpl-3.0.html.
 **
-** As a special exception, The Qt Company gives you certain additional
-** rights. These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 2.0 or (at your option) the GNU General
+** Public license version 3 or any later version approved by the KDE Free
+** Qt Foundation. The licenses are as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL2 and LICENSE.GPL3
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-2.0.html and
+** https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ** $QT_END_LICENSE$
 **
@@ -50,8 +56,12 @@
 
 #include "qsslkey.h"
 #include "qsslkey_p.h"
+#ifndef QT_NO_OPENSSL
+#include "qsslsocket_openssl_symbols_p.h"
+#endif
 #include "qsslsocket.h"
 #include "qsslsocket_p.h"
+#include "qasn1element_p.h"
 
 #include <QtCore/qatomic.h>
 #include <QtCore/qbytearray.h>
@@ -107,9 +117,18 @@ QByteArray QSslKeyPrivate::pemHeader() const
         return QByteArrayLiteral("-----BEGIN DSA PRIVATE KEY-----");
     else if (algorithm == QSsl::Ec)
         return QByteArrayLiteral("-----BEGIN EC PRIVATE KEY-----");
+    else if (algorithm == QSsl::Dh)
+        return QByteArrayLiteral("-----BEGIN PRIVATE KEY-----");
 
     Q_UNREACHABLE();
     return QByteArray();
+}
+
+static QByteArray pkcs8Header(bool encrypted)
+{
+    return encrypted
+        ? QByteArrayLiteral("-----BEGIN ENCRYPTED PRIVATE KEY-----")
+        : QByteArrayLiteral("-----BEGIN PRIVATE KEY-----");
 }
 
 /*!
@@ -125,9 +144,18 @@ QByteArray QSslKeyPrivate::pemFooter() const
         return QByteArrayLiteral("-----END DSA PRIVATE KEY-----");
     else if (algorithm == QSsl::Ec)
         return QByteArrayLiteral("-----END EC PRIVATE KEY-----");
+    else if (algorithm == QSsl::Dh)
+        return QByteArrayLiteral("-----END PRIVATE KEY-----");
 
     Q_UNREACHABLE();
     return QByteArray();
+}
+
+static QByteArray pkcs8Footer(bool encrypted)
+{
+    return encrypted
+        ? QByteArrayLiteral("-----END ENCRYPTED PRIVATE KEY-----")
+        : QByteArrayLiteral("-----END PRIVATE KEY-----");
 }
 
 /*!
@@ -158,8 +186,19 @@ QByteArray QSslKeyPrivate::pemFromDer(const QByteArray &der, const QMap<QByteArr
         } while (it != headers.constBegin());
         extra += '\n';
     }
-    pem.prepend(pemHeader() + '\n' + extra);
-    pem.append(pemFooter() + '\n');
+
+    if (isEncryptedPkcs8(der)) {
+        pem.prepend(pkcs8Header(true) + '\n' + extra);
+        pem.append(pkcs8Footer(true) + '\n');
+#if !QT_SUPPORTS(openssl)
+    } else if (isPkcs8) {
+        pem.prepend(pkcs8Header(false) + '\n' + extra);
+        pem.append(pkcs8Footer(false) + '\n');
+#endif
+    } else {
+        pem.prepend(pemHeader() + '\n' + extra);
+        pem.append(pemFooter() + '\n');
+    }
 
     return pem;
 }
@@ -171,13 +210,27 @@ QByteArray QSslKeyPrivate::pemFromDer(const QByteArray &der, const QMap<QByteArr
 */
 QByteArray QSslKeyPrivate::derFromPem(const QByteArray &pem, QMap<QByteArray, QByteArray> *headers) const
 {
-    const QByteArray header = pemHeader();
-    const QByteArray footer = pemFooter();
+    QByteArray header = pemHeader();
+    QByteArray footer = pemFooter();
 
     QByteArray der(pem);
 
-    const int headerIndex = der.indexOf(header);
-    const int footerIndex = der.indexOf(footer);
+    int headerIndex = der.indexOf(header);
+    int footerIndex = der.indexOf(footer, headerIndex + header.length());
+    if (type != QSsl::PublicKey) {
+        if (headerIndex == -1 || footerIndex == -1) {
+            header = pkcs8Header(true);
+            footer = pkcs8Footer(true);
+            headerIndex = der.indexOf(header);
+            footerIndex = der.indexOf(footer, headerIndex + header.length());
+        }
+        if (headerIndex == -1 || footerIndex == -1) {
+            header = pkcs8Header(false);
+            footer = pkcs8Footer(false);
+            headerIndex = der.indexOf(header);
+            footerIndex = der.indexOf(footer, headerIndex + header.length());
+        }
+    }
     if (headerIndex == -1 || footerIndex == -1)
         return QByteArray();
 
@@ -185,11 +238,9 @@ QByteArray QSslKeyPrivate::derFromPem(const QByteArray &pem, QMap<QByteArray, QB
 
     if (der.contains("Proc-Type:")) {
         // taken from QHttpNetworkReplyPrivate::parseHeader
-        const QByteArrayMatcher lf("\n");
-        const QByteArrayMatcher colon(":");
         int i = 0;
         while (i < der.count()) {
-            int j = colon.indexIn(der, i); // field-name
+            int j = der.indexOf(':', i); // field-name
             if (j == -1)
                 break;
             const QByteArray field = der.mid(i, j - i).trimmed();
@@ -197,7 +248,7 @@ QByteArray QSslKeyPrivate::derFromPem(const QByteArray &pem, QMap<QByteArray, QB
             // any number of LWS is allowed before and after the value
             QByteArray value;
             do {
-                i = lf.indexIn(der, j);
+                i = der.indexOf('\n', j);
                 if (i == -1)
                     break;
                 if (!value.isEmpty())
@@ -219,13 +270,43 @@ QByteArray QSslKeyPrivate::derFromPem(const QByteArray &pem, QMap<QByteArray, QB
     return QByteArray::fromBase64(der); // ignores newlines
 }
 
+bool QSslKeyPrivate::isEncryptedPkcs8(const QByteArray &der) const
+{
+    QAsn1Element elem;
+    if (!elem.read(der) || elem.type() != QAsn1Element::SequenceType)
+        return false;
+
+    const QVector<QAsn1Element> items = elem.toVector();
+    if (items.size() != 2
+        || items[0].type() != QAsn1Element::SequenceType
+        || items[1].type() != QAsn1Element::OctetStringType) {
+        return false;
+    }
+
+    const QVector<QAsn1Element> encryptionSchemeContainer = items[0].toVector();
+    if (encryptionSchemeContainer.size() != 2
+        || encryptionSchemeContainer[0].type() != QAsn1Element::ObjectIdentifierType
+        || encryptionSchemeContainer[1].type() != QAsn1Element::SequenceType) {
+        return false;
+    }
+
+    const QByteArray encryptionScheme = encryptionSchemeContainer[0].toObjectId();
+    return encryptionScheme == PKCS5_PBES2_ENCRYPTION_OID
+            || encryptionScheme == PKCS5_MD2_DES_CBC_OID
+            || encryptionScheme == PKCS5_MD2_RC2_CBC_OID
+            || encryptionScheme == PKCS5_MD5_DES_CBC_OID
+            || encryptionScheme == PKCS5_MD5_RC2_CBC_OID
+            || encryptionScheme == PKCS5_SHA1_DES_CBC_OID
+            || encryptionScheme == PKCS5_SHA1_RC2_CBC_OID
+            || encryptionScheme.startsWith(PKCS12_OID);
+}
+
 /*!
     Constructs a QSslKey by decoding the string in the byte array
     \a encoded using a specified \a algorithm and \a encoding format.
     \a type specifies whether the key is public or private.
 
-    If the key is encoded as PEM and encrypted, \a passPhrase is used
-    to decrypt it.
+    If the key is encrypted then \a passPhrase is used to decrypt it.
 
     After construction, use isNull() to check if \a encoded contained
     a valid key.
@@ -237,7 +318,7 @@ QSslKey::QSslKey(const QByteArray &encoded, QSsl::KeyAlgorithm algorithm,
     d->type = type;
     d->algorithm = algorithm;
     if (encoding == QSsl::Der)
-        d->decodeDer(encoded);
+        d->decodeDer(encoded, passPhrase);
     else
         d->decodePem(encoded, passPhrase);
 }
@@ -247,8 +328,7 @@ QSslKey::QSslKey(const QByteArray &encoded, QSsl::KeyAlgorithm algorithm,
     \a device using a specified \a algorithm and \a encoding format.
     \a type specifies whether the key is public or private.
 
-    If the key is encoded as PEM and encrypted, \a passPhrase is used
-    to decrypt it.
+    If the key is encrypted then \a passPhrase is used to decrypt it.
 
     After construction, use isNull() to check if \a device provided
     a valid key.
@@ -263,7 +343,7 @@ QSslKey::QSslKey(QIODevice *device, QSsl::KeyAlgorithm algorithm, QSsl::Encoding
     d->type = type;
     d->algorithm = algorithm;
     if (encoding == QSsl::Der)
-        d->decodeDer(encoded);
+        d->decodeDer(encoded, passPhrase);
     else
         d->decodePem(encoded, passPhrase);
 }
@@ -274,18 +354,23 @@ QSslKey::QSslKey(QIODevice *device, QSsl::KeyAlgorithm algorithm, QSsl::Encoding
     \a type specifies whether the key is public or private.
 
     QSslKey will take ownership for this key and you must not
-    free the key using the native library. The algorithm used
-    when creating a key from a handle will always be QSsl::Opaque.
+    free the key using the native library.
 */
 QSslKey::QSslKey(Qt::HANDLE handle, QSsl::KeyType type)
     : d(new QSslKeyPrivate)
 {
 #ifndef QT_NO_OPENSSL
-    d->opaque = reinterpret_cast<EVP_PKEY *>(handle);
+    EVP_PKEY *evpKey = reinterpret_cast<EVP_PKEY *>(handle);
+    if (!evpKey || !d->fromEVP_PKEY(evpKey)) {
+        d->opaque = evpKey;
+        d->algorithm = QSsl::Opaque;
+    } else {
+        q_EVP_PKEY_free(evpKey);
+    }
 #else
     d->opaque = handle;
-#endif
     d->algorithm = QSsl::Opaque;
+#endif
     d->type = type;
     d->isNull = !d->opaque;
 }
@@ -402,8 +487,8 @@ QByteArray QSslKey::toPem(const QByteArray &passPhrase) const
 }
 
 /*!
-    Returns a pointer to the native key handle, if it is available;
-    otherwise a null pointer is returned.
+    Returns a pointer to the native key handle, if there is
+    one, else \nullptr.
 
     You can use this handle together with the native API to access
     extended information about the key.
@@ -451,7 +536,9 @@ QDebug operator<<(QDebug debug, const QSslKey &key)
     debug << "QSslKey("
           << (key.type() == QSsl::PublicKey ? "PublicKey" : "PrivateKey")
           << ", " << (key.algorithm() == QSsl::Opaque ? "OPAQUE" :
-                      (key.algorithm() == QSsl::Rsa ? "RSA" : ((key.algorithm() == QSsl::Dsa) ? "DSA" : "EC")))
+                     (key.algorithm() == QSsl::Rsa ? "RSA" :
+                     (key.algorithm() == QSsl::Dsa ? "DSA" :
+                     (key.algorithm() == QSsl::Dh ? "DH" : "EC"))))
           << ", " << key.length()
           << ')';
     return debug;

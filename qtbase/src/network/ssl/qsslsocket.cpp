@@ -1,39 +1,45 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
+** Copyright (C) 2016 The Qt Company Ltd.
 ** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
-** Contact: http://www.qt.io/licensing/
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the QtNetwork module of the Qt Toolkit.
 **
-** $QT_BEGIN_LICENSE:LGPL21$
+** $QT_BEGIN_LICENSE:LGPL$
 ** Commercial License Usage
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
 ** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see http://www.qt.io/terms-conditions. For further
-** information use the contact form at http://www.qt.io/contact-us.
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file. Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 3 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL3 included in the
+** packaging of this file. Please review the following information to
+** ensure the GNU Lesser General Public License version 3 requirements
+** will be met: https://www.gnu.org/licenses/lgpl-3.0.html.
 **
-** As a special exception, The Qt Company gives you certain additional
-** rights. These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 2.0 or (at your option) the GNU General
+** Public license version 3 or any later version approved by the KDE Free
+** Qt Foundation. The licenses are as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL2 and LICENSE.GPL3
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-2.0.html and
+** https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
 
-//#define QSSLSOCKET_DEBUG
+#define QSSLSOCKET_DEBUG
 
 /*!
     \class QSslSocket
@@ -49,7 +55,8 @@
     QSslSocket establishes a secure, encrypted TCP connection you can
     use for transmitting encrypted data. It can operate in both client
     and server mode, and it supports modern SSL protocols, including
-    SSLv3 and TLSv1_0. By default, QSslSocket uses TLSv1_0, but you can
+    SSL 3 and TLS 1.2. By default, QSslSocket uses only SSL protocols
+    which are considered to be secure (QSsl::SecureProtocols), but you can
     change the SSL protocol by calling setProtocol() as long as you do
     it before the handshake has started.
 
@@ -131,19 +138,18 @@
     before the handshake phase with setLocalCertificate() and
     setPrivateKey().
     \li The CA certificate database can be extended and customized with
-    addCaCertificate(), addCaCertificates(), setCaCertificates(),
-    addDefaultCaCertificate(), addDefaultCaCertificates(), and
-    setDefaultCaCertificates().
+    addCaCertificate(), addCaCertificates(), addDefaultCaCertificate(),
+    addDefaultCaCertificates(), and QSslConfiguration::defaultConfiguration().setCaCertificates().
     \endlist
 
-    \note If available, root certificates on Unix (excluding OS X) will be
-    loaded on demand from the standard certificate directories. If
-    you do not want to load root certificates on demand, you need to call either
-    the static function setDefaultCaCertificates() before the first SSL handshake
-    is made in your application, (e.g. via
-    "QSslSocket::setDefaultCaCertificates(QSslSocket::systemCaCertificates());"),
-    or call setCaCertificates() on your QSslSocket instance prior to the SSL
-    handshake.
+    \note If available, root certificates on Unix (excluding \macos) will be
+    loaded on demand from the standard certificate directories. If you do not
+    want to load root certificates on demand, you need to call either
+    QSslConfiguration::defaultConfiguration().setCaCertificates() before the first
+    SSL handshake is made in your application (for example, via passing
+    QSslSocket::systemCaCertificates() to it), or call
+    QSslConfiguration::defaultConfiguration()::setCaCertificates() on your QSslSocket instance
+    prior to the SSL handshake.
 
     For more information about ciphers and certificates, refer to QSslCipher and
     QSslCertificate.
@@ -209,7 +215,7 @@
 */
 
 /*!
-    \fn QSslSocket::encrypted()
+    \fn void QSslSocket::encrypted()
 
     This signal is emitted when QSslSocket enters encrypted mode. After this
     signal has been emitted, QSslSocket::isEncrypted() will return true, and
@@ -219,7 +225,7 @@
 */
 
 /*!
-    \fn QSslSocket::modeChanged(QSslSocket::SslMode mode)
+    \fn void QSslSocket::modeChanged(QSslSocket::SslMode mode)
 
     This signal is emitted when QSslSocket changes from \l
     QSslSocket::UnencryptedMode to either \l QSslSocket::SslClientMode or \l
@@ -229,7 +235,7 @@
 */
 
 /*!
-    \fn QSslSocket::encryptedBytesWritten(qint64 written)
+    \fn void QSslSocket::encryptedBytesWritten(qint64 written)
     \since 4.4
 
     This signal is emitted when QSslSocket writes its encrypted data to the
@@ -320,6 +326,7 @@
 #include <QtCore/qdebug.h>
 #include <QtCore/qdir.h>
 #include <QtCore/qmutex.h>
+#include <QtCore/qurl.h>
 #include <QtCore/qelapsedtimer.h>
 #include <QtNetwork/qhostaddress.h>
 #include <QtNetwork/qhostinfo.h>
@@ -329,12 +336,20 @@ QT_BEGIN_NAMESPACE
 class QSslSocketGlobalData
 {
 public:
-    QSslSocketGlobalData() : config(new QSslConfigurationPrivate) {}
+    QSslSocketGlobalData()
+        : config(new QSslConfigurationPrivate),
+          dtlsConfig(new QSslConfigurationPrivate)
+    {
+#if QT_SUPPORTS(dtls)
+        dtlsConfig->protocol = QSsl::DtlsV1_2OrLater;
+#endif // dtls
+    }
 
     QMutex mutex;
     QList<QSslCipher> supportedCiphers;
     QVector<QSslEllipticCurve> supportedEllipticCurves;
     QExplicitlySharedDataPointer<QSslConfigurationPrivate> config;
+    QExplicitlySharedDataPointer<QSslConfigurationPrivate> dtlsConfig;
 };
 Q_GLOBAL_STATIC(QSslSocketGlobalData, globalData)
 
@@ -2097,6 +2112,26 @@ void QSslSocketPrivate::setDefaultSupportedCiphers(const QList<QSslCipher> &ciph
 /*!
     \internal
 */
+void q_setDefaultDtlsCiphers(const QList<QSslCipher> &ciphers)
+{
+    QMutexLocker locker(&globalData()->mutex);
+    globalData()->dtlsConfig.detach();
+    globalData()->dtlsConfig->ciphers = ciphers;
+}
+
+/*!
+    \internal
+*/
+QList<QSslCipher> q_getDefaultDtlsCiphers()
+{
+    QSslSocketPrivate::ensureInitialized();
+    QMutexLocker locker(&globalData()->mutex);
+    return globalData()->dtlsConfig->ciphers;
+}
+
+/*!
+    \internal
+*/
 QVector<QSslEllipticCurve> QSslSocketPrivate::supportedEllipticCurves()
 {
     QSslSocketPrivate::ensureInitialized();
@@ -2111,6 +2146,7 @@ void QSslSocketPrivate::setDefaultSupportedEllipticCurves(const QVector<QSslElli
 {
     const QMutexLocker locker(&globalData()->mutex);
     globalData()->config.detach();
+    globalData()->dtlsConfig.detach();
     globalData()->supportedEllipticCurves = curves;
 }
 
@@ -2133,6 +2169,8 @@ void QSslSocketPrivate::setDefaultCaCertificates(const QList<QSslCertificate> &c
     QMutexLocker locker(&globalData()->mutex);
     globalData()->config.detach();
     globalData()->config->caCertificates = certs;
+    globalData()->dtlsConfig.detach();
+    globalData()->dtlsConfig->caCertificates = certs;
     // when the certificates are set explicitly, we do not want to
     // load the system certificates on demand
     s_loadRootCertsOnDemand = false;
@@ -2152,6 +2190,8 @@ bool QSslSocketPrivate::addDefaultCaCertificates(const QString &path, QSsl::Enco
     QMutexLocker locker(&globalData()->mutex);
     globalData()->config.detach();
     globalData()->config->caCertificates += certs;
+    globalData()->dtlsConfig.detach();
+    globalData()->dtlsConfig->caCertificates += certs;
     return true;
 }
 
@@ -2164,6 +2204,8 @@ void QSslSocketPrivate::addDefaultCaCertificate(const QSslCertificate &cert)
     QMutexLocker locker(&globalData()->mutex);
     globalData()->config.detach();
     globalData()->config->caCertificates += cert;
+    globalData()->dtlsConfig.detach();
+    globalData()->dtlsConfig->caCertificates += cert;
 }
 
 /*!
@@ -2175,6 +2217,8 @@ void QSslSocketPrivate::addDefaultCaCertificates(const QList<QSslCertificate> &c
     QMutexLocker locker(&globalData()->mutex);
     globalData()->config.detach();
     globalData()->config->caCertificates += certs;
+    globalData()->dtlsConfig.detach();
+    globalData()->dtlsConfig->caCertificates += certs;
 }
 
 /*!
@@ -2226,6 +2270,30 @@ void QSslConfigurationPrivate::deepCopyDefaultConfiguration(QSslConfigurationPri
     ptr->peerVerifyDepth = global->peerVerifyDepth;
     ptr->sslOptions = global->sslOptions;
     ptr->ellipticCurves = global->ellipticCurves;
+}
+
+/*!
+    \internal
+*/
+QSslConfiguration QSslConfigurationPrivate::defaultDtlsConfiguration()
+{
+    QSslSocketPrivate::ensureInitialized();
+    QMutexLocker locker(&globalData()->mutex);
+
+    return QSslConfiguration(globalData()->dtlsConfig.data());
+}
+
+/*!
+    \internal
+*/
+void QSslConfigurationPrivate::setDefaultDtlsConfiguration(const QSslConfiguration &configuration)
+{
+    QSslSocketPrivate::ensureInitialized();
+    QMutexLocker locker(&globalData()->mutex);
+    if (globalData()->dtlsConfig == configuration.d)
+        return;                 // nothing to do
+
+    globalData()->dtlsConfig = const_cast<QSslConfigurationPrivate*>(configuration.d.constData());
 }
 
 /*!
@@ -2620,30 +2688,35 @@ QSharedPointer<QSslContext> QSslSocketPrivate::sslContext(QSslSocket *socket)
 
 bool QSslSocketPrivate::isMatchingHostname(const QSslCertificate &cert, const QString &peerName)
 {
-    QStringList commonNameList = cert.subjectInfo(QSslCertificate::CommonName);
+    const QString lowerPeerName = QString::fromLatin1(QUrl::toAce(peerName));
+    const QStringList commonNames = cert.subjectInfo(QSslCertificate::CommonName);
 
-    foreach (const QString &commonName, commonNameList) {
-        if (isMatchingHostname(commonName.toLower(), peerName.toLower())) {
+    foreach (const QString &commonName, commonNames) {
+        if (isMatchingHostname(commonName, lowerPeerName))
             return true;
-        }
     }
 
-    foreach (const QString &altName, cert.subjectAlternativeNames().values(QSsl::DnsEntry)) {
-        if (isMatchingHostname(altName.toLower(), peerName.toLower())) {
+    const QMultiMap<QSsl::AlternativeNameEntryType, QString> subjectAlternativeNames = cert.subjectAlternativeNames();
+    const QStringList altNames = subjectAlternativeNames.values(QSsl::DnsEntry);
+    foreach (const QString &altName, altNames) {
+        if (isMatchingHostname(altName, lowerPeerName))
             return true;
-        }
     }
 
     return false;
 }
 
+/*! \internal
+   Checks if the certificate's name \a cn matches the \a hostname.
+   \a hostname must be normalized in ASCII-Compatible Encoding, but \a cn is not normalized
+ */
 bool QSslSocketPrivate::isMatchingHostname(const QString &cn, const QString &hostname)
 {
     int wildcard = cn.indexOf(QLatin1Char('*'));
 
     // Check this is a wildcard cert, if not then just compare the strings
     if (wildcard < 0)
-        return cn == hostname;
+        return QLatin1String(QUrl::toAce(cn)) == hostname;
 
     int firstCnDot = cn.indexOf(QLatin1Char('.'));
     int secondCnDot = cn.indexOf(QLatin1Char('.'), firstCnDot+1);
@@ -2660,13 +2733,21 @@ bool QSslSocketPrivate::isMatchingHostname(const QString &cn, const QString &hos
     if (cn.lastIndexOf(QLatin1Char('*')) != wildcard)
         return false;
 
+    // Reject wildcard character embedded within the A-labels or U-labels of an internationalized
+    // domain name (RFC6125 section 7.2)
+    if (cn.startsWith(QLatin1String("xn--"), Qt::CaseInsensitive))
+        return false;
+
     // Check characters preceding * (if any) match
-    if (wildcard && (hostname.leftRef(wildcard) != cn.leftRef(wildcard)))
+    if (wildcard && hostname.leftRef(wildcard).compare(cn.leftRef(wildcard), Qt::CaseInsensitive) != 0)
         return false;
 
     // Check characters following first . match
-    if (hostname.midRef(hostname.indexOf(QLatin1Char('.'))) != cn.midRef(firstCnDot))
+    int hnDot = hostname.indexOf(QLatin1Char('.'));
+    if (hostname.midRef(hnDot + 1) != cn.midRef(firstCnDot + 1)
+        && hostname.midRef(hnDot + 1) != QLatin1String(QUrl::toAce(cn.mid(firstCnDot + 1)))) {
         return false;
+    }
 
     // Check if the hostname is an IP address, if so then wildcards are not allowed
     QHostAddress addr(hostname);
