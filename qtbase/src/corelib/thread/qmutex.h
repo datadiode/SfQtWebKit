@@ -115,6 +115,12 @@ private:
     friend class QMutexLocker;
 };
 
+class QRecursiveMutex : public QMutex
+{
+public:
+    QRecursiveMutex() : QMutex(Recursive) { }
+};
+
 class Q_CORE_EXPORT QMutexLocker
 {
 public:
