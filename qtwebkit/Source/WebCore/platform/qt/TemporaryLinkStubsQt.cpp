@@ -61,6 +61,7 @@
 #include "SharedBuffer.h"
 #include "TextBoundaries.h"
 #include "Widget.h"
+#include "BridgeJSC.h" // JSC::Bindings::Instance
 
 #include <float.h>
 #include <stdio.h>

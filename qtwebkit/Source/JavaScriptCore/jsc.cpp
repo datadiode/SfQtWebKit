@@ -520,7 +520,7 @@ int main(int argc, char** argv)
     ::SetErrorMode(0);
 #endif
 
-#if defined(_DEBUG)
+#if defined(_DEBUG) && !defined(_WIN32_WCE)
     _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
     _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
     _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);

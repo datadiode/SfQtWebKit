@@ -40,7 +40,7 @@
 #include <stdio.h>
 #ifdef Q_OS_WIN
 // required for _setmode, to avoid _O_TEXT streams...
-# ifdef Q_OS_WINCE
+# if defined(Q_OS_WINCE) && (_WIN32_WCE <= 0x600)
 #  include <stdlib.h>
 # else
 #  include <io.h> // for _setmode
@@ -284,7 +284,7 @@ bool Translator::load(const QString &filename, ConversionData &cd, const QString
     if (filename.isEmpty() || filename == QLatin1String("-")) {
 #ifdef Q_OS_WIN
         // QFile is broken for text files
-# ifdef Q_OS_WINCE
+# if defined(Q_OS_WINCE) && (_WIN32_WCE <= 0x600)
         ::_setmode(stdin, _O_BINARY);
 # else
         ::_setmode(0, _O_BINARY);
@@ -328,7 +328,7 @@ bool Translator::save(const QString &filename, ConversionData &cd, const QString
     if (filename.isEmpty() || filename == QLatin1String("-")) {
 #ifdef Q_OS_WIN
         // QFile is broken for text files
-# ifdef Q_OS_WINCE
+# if defined(Q_OS_WINCE) && (_WIN32_WCE <= 0x600)
         ::_setmode(stdout, _O_BINARY);
 # else
         ::_setmode(1, _O_BINARY);

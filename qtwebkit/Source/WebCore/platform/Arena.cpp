@@ -157,7 +157,7 @@ static void FreeArenaList(ArenaPool* pool, Arena* head)
     do {
         ASSERT(arena->base <= arena->avail && arena->avail <= arena->limit);
         arena->avail = arena->base;
-        memset((void*)(arena)->avail, FREE_PATTERN, (arena)->limit - (arena)->avail)
+        memset((void*)(arena)->avail, FREE_PATTERN, (arena)->limit - (arena)->avail);
     } while ((arena = arena->next) != 0);
     arena = *arenaPointer;
 #endif

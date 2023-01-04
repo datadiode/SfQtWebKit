@@ -13,7 +13,7 @@ struct tm;
 
 time_t time(time_t* timer);
 time_t mktime(struct tm *t);
-size_t strftime(char * const s, const size_t maxsize, const char * const format, const struct tm * const t);
+size_t strftime(char *s, size_t maxsize, const char *format, const struct tm *t);
 struct tm *localtime(const time_t *timer);
 
 #ifdef __cplusplus

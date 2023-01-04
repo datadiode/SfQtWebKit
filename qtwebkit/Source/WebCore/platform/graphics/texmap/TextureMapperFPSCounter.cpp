@@ -37,6 +37,7 @@ TextureMapperFPSCounter::TextureMapperFPSCounter()
     , m_lastFPS(0)
     , m_frameCount(0)
 {
+#ifndef _WIN32_WCE
     String showFPSEnvironment = getenv("WEBKIT_SHOW_FPS");
     bool ok = false;
     m_fpsInterval = showFPSEnvironment.toDouble(&ok);
@@ -44,6 +45,7 @@ TextureMapperFPSCounter::TextureMapperFPSCounter()
         m_isShowingFPS = true;
         m_fpsTimestamp = WTF::currentTime();
     }
+#endif
 }
 
 void TextureMapperFPSCounter::updateFPSAndDisplay(TextureMapper* textureMapper, const FloatPoint& location, const TransformationMatrix& matrix)

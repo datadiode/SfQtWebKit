@@ -52,7 +52,7 @@
 #include "qapplicationargument_p.h"
 #include "qapplicationargumentparser_p.h"
 
-#if defined(Q_OS_WIN) && !defined(Q_OS_WINCE)
+#if defined(Q_OS_WIN) && (!defined(Q_OS_WINCE) || _WIN32_WCE > 0x600)
 /* Needed for opening stdout with _fdopen & friends. io.h seems to not be
  * needed on MinGW though. */
 #include <io.h>

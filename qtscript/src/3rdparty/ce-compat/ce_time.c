@@ -42,6 +42,7 @@
 #include <time.h>
 #include "ce_time.h"
 
+#if _WIN32_WCE <= 0x600
 time_t
 time(time_t* timer)
 {
@@ -106,6 +107,7 @@ time_t mktime(struct tm *t)
         result += t->tm_sec;
         return(result);
 }
+#endif
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -557,7 +559,7 @@ label:
 
 
 size_t
-strftime(char * const s, const size_t maxsize, const char * const format, const struct tm * const t)
+strftime(char *s, size_t maxsize, const char *format, const struct tm *t)
 {
 	char *	p;
 	int	warn;
@@ -578,6 +580,7 @@ strftime(char * const s, const size_t maxsize, const char * const format, const 
 
 
 
+#if _WIN32_WCE <= 0x600
 /////////////////////////////////////////////////////////////////////////////////////////////
 //                                                                                         //
 //                                      gmtime()                                           //
@@ -675,3 +678,4 @@ localtime(const time_t *timer)
 {
 	return gmtime(timer);
 }
+#endif

@@ -64,7 +64,11 @@
 
 #if OS(WINDOWS)
 #if OS(WINCE)
+#if _WIN32_WCE <= 0x600
 #include <cmnintrin.h>
+#else
+#include <intrin.h>
+#endif
 #elif !COMPILER(GCC)
 extern "C" void _ReadWriteBarrier(void);
 #pragma intrinsic(_ReadWriteBarrier)
@@ -252,11 +256,16 @@ inline void memoryBarrierBeforeUnlock() { armV7_dmb(); }
 inline void x86_mfence()
 {
 #if OS(WINDOWS)
+#if OS(WINCE)
+    long dummy = 0;
+    InterlockedExchange(&dummy, 1);
+#else
     // I think that this does the equivalent of a dummy interlocked instruction,
     // instead of using the 'mfence' instruction, at least according to MSDN. I
     // know that it is equivalent for our purposes, but it would be good to
     // investigate if that is actually better.
     MemoryBarrier();
+#endif
 #else
     asm volatile("mfence" ::: "memory");
 #endif

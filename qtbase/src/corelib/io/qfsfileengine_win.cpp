@@ -711,7 +711,7 @@ bool QFSFileEngine::link(const QString &newName)
     Q_UNUSED(newName);
     return false;
 #endif // QT_NO_LIBRARY
-#elif defined(Q_OS_WINCE)
+#elif defined(Q_OS_WINCE) && (_WIN32_WCE <= 0x600)
     QString linkName = newName;
     linkName.replace(QLatin1Char('/'), QLatin1Char('\\'));
     if (!linkName.endsWith(QLatin1String(".lnk")))
@@ -963,7 +963,7 @@ uchar *QFSFileEnginePrivate::map(qint64 offset, qint64 size,
 #ifdef FILE_MAP_COPY
         access = FILE_MAP_COPY;
 #else
-        q->setError(QFile::UnspecifiedError, "MapPrivateOption unsupported");
+        q->setError(QFile::UnspecifiedError, QLatin1String("MapPrivateOption unsupported"));
         return 0;
 #endif
     } else if (openMode & QIODevice::WriteOnly) {

@@ -140,7 +140,7 @@ public:
     }
 
 private:
-    ULONG m_ref;
+    LONG m_ref;
     DSCameraSession *m_session;
 };
 

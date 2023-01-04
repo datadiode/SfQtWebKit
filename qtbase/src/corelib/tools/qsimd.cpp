@@ -43,7 +43,11 @@
 #if defined(Q_OS_WIN)
 #  if defined(Q_OS_WINCE)
 #    include <qt_windows.h>
-#    include <cmnintrin.h>
+#    if _WIN32_WCE < 0x800
+#      include <cmnintrin.h>
+#    else
+#      include <intrin.h>
+#    endif
 #  endif
 #  if !defined(Q_CC_GNU)
 #    ifndef Q_OS_WINCE

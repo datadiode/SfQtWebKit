@@ -19,8 +19,9 @@ extern "C" {
  * If any other extensions using these types are defined,
  * the typedefs must move out of this block and be shared.
  */
-typedef khronos_int64_t GLint64;
-typedef khronos_uint64_t GLuint64;
+#include <stdint.h>
+typedef /*khronos_*/int64_t GLint64;
+typedef /*khronos_*/uint64_t GLuint64;
 typedef struct __GLsync *GLsync;
 #endif
 
