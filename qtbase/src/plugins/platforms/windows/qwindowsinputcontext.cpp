@@ -51,6 +51,49 @@
 
 #include <algorithm>
 
+#ifdef Q_OS_WINCE
+#include <windows.h>
+#include <sipapi.h>
+
+template<typename f>
+struct DllImport {
+  FARPROC p;
+  f operator*() const { return reinterpret_cast<f>(p); }
+};
+
+static struct sipapi {
+  HMODULE h;
+  DllImport<BOOL(WINAPI*)(DWORD)> SipShowIM;
+  DllImport<BOOL(WINAPI*)(SIPINFO*)> SipGetInfo;
+} const sipapi = {
+  GetModuleHandleW(L"COREDLL.DLL"),
+  GetProcAddress(sipapi.h, L"SipShowIM"),
+  GetProcAddress(sipapi.h, L"SipGetInfo"),
+};
+
+void QWindowsInputContext::showInputPanel()
+{
+    if (*sipapi.SipShowIM)
+        (*sipapi.SipShowIM)(SIPF_ON);
+}
+
+void QWindowsInputContext::hideInputPanel()
+{
+    if (*sipapi.SipShowIM)
+        (*sipapi.SipShowIM)(SIPF_OFF);
+}
+
+bool QWindowsInputContext::isInputPanelVisible() const
+{
+    SIPINFO si;
+    memset(&si, 0, sizeof si);
+    si.cbSize = sizeof si;
+    if (*sipapi.SipGetInfo)
+        (*sipapi.SipGetInfo)(&si);
+    return (si.fdwFlags & SIPF_ON) != 0;
+}
+#endif
+
 QT_BEGIN_NAMESPACE
 
 static inline QByteArray debugComposition(int lParam)

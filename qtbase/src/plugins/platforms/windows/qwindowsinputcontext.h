@@ -68,6 +68,12 @@ public:
     void invokeAction(QInputMethod::Action, int cursorPosition) Q_DECL_OVERRIDE;
     void setFocusObject(QObject *object) Q_DECL_OVERRIDE;
 
+#ifdef Q_OS_WINCE
+    void showInputPanel() Q_DECL_OVERRIDE;
+    void hideInputPanel() Q_DECL_OVERRIDE;
+    bool isInputPanelVisible() const Q_DECL_OVERRIDE;
+#endif
+
     static QWindowsInputContext *instance();
 
     bool startComposition(HWND hwnd);
