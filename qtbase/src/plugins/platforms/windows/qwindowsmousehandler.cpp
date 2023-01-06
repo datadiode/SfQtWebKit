@@ -256,9 +256,11 @@ bool QWindowsMouseHandler::translateMouseEvent(QWindow *window, HWND hwnd,
             // This autocapture is released normally when button is released.
             if (!platformWindow->hasMouseCapture()) {
                 QWindowsWindow::baseWindowOf(window)->applyCursor();
+#ifndef Q_OS_WINCE
                 platformWindow->setMouseGrabEnabled(true);
                 platformWindow->setFlag(QWindowsWindow::AutoMouseCapture);
                 qCDebug(lcQpaEvents) << "Automatic mouse capture for missing buttondown event" << window;
+#endif
             }
             m_previousCaptureWindow = window;
             return true;
@@ -291,9 +293,11 @@ bool QWindowsMouseHandler::translateMouseEvent(QWindow *window, HWND hwnd,
             || msg.message == WM_RBUTTONDOWN || msg.message == WM_XBUTTONDOWN
             || msg.message == WM_LBUTTONDBLCLK || msg.message == WM_MBUTTONDBLCLK
             || msg.message == WM_RBUTTONDBLCLK || msg.message == WM_XBUTTONDBLCLK)) {
+#ifndef Q_OS_WINCE
         platformWindow->setMouseGrabEnabled(true);
         platformWindow->setFlag(QWindowsWindow::AutoMouseCapture);
         qCDebug(lcQpaEvents) << "Automatic mouse capture " << window;
+#endif
         // Implement "Click to focus" for native child windows (unless it is a native widget window).
         if (!window->isTopLevel() && !window->inherits("QWidgetWindow") && QGuiApplication::focusWindow() != window)
             window->requestActivate();
@@ -302,8 +306,10 @@ bool QWindowsMouseHandler::translateMouseEvent(QWindow *window, HWND hwnd,
                && (msg.message == WM_LBUTTONUP || msg.message == WM_MBUTTONUP
                    || msg.message == WM_RBUTTONUP || msg.message == WM_XBUTTONUP)
                && !buttons) {
+#ifndef Q_OS_WINCE
         platformWindow->setMouseGrabEnabled(false);
         qCDebug(lcQpaEvents) << "Releasing automatic mouse capture " << window;
+#endif
     }
 
     const bool hasCapture = platformWindow->hasMouseCapture();
