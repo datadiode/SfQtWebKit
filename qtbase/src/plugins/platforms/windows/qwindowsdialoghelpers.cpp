@@ -66,6 +66,63 @@
 
 #include "qtwindows_additional.h"
 
+#ifndef WINCOMMDLGAPI  /* Add missing declarations for WinCE */
+// flags for OpenFileName
+enum {
+    OFN_SHAREWARN            = 0,
+    OFN_SHARENOWARN          = 0x000001,
+    OFN_READONLY             = 0x000001,
+    OFN_SHAREFALLTHROUGH     = 0x000002,
+    OFN_OVERWRITEPROMPT      = 0x000002,
+    OFN_HIDEREADONLY         = 0x000004,
+    OFN_NOCHANGEDIR          = 0x000008,
+    OFN_SHOWHELP             = 0x000010,
+    OFN_ENABLEHOOK           = 0x000020,
+    OFN_ENABLETEMPLATE       = 0x000040,
+    OFN_ENABLETEMPLATEHANDLE = 0x000080,
+    OFN_NOVALIDATE           = 0x000100,
+    OFN_ALLOWMULTISELECT     = 0x000200,
+    OFN_EXTENSIONDIFFERENT   = 0x000400,
+    OFN_PATHMUSTEXIST        = 0x000800,
+    OFN_FILEMUSTEXIST        = 0x001000,
+    OFN_CREATEPROMPT         = 0x002000,
+    OFN_SHAREAWARE           = 0x004000,
+    OFN_NOREADONLYRETURN     = 0x008000,
+    OFN_NOTESTFILECREATE     = 0x010000,
+    OFN_NONETWORKBUTTON      = 0x020000,
+    OFN_NOLONGNAMES          = 0x040000,
+    OFN_EXPLORER             = 0x080000,
+    OFN_NODEREFERENCELINKS   = 0x100000,
+    OFN_LONGNAMES            = 0x200000,
+    OFN_ENABLESIZING         = 0x800000
+};
+
+typedef UINT_PTR(QT_WIN_CALLBACK* LPOFNHOOKPROC)(HWND, UINT, WPARAM, LPARAM);
+
+struct OPENFILENAMEW {
+    DWORD         lStructSize;
+    HWND          hwndOwner;
+    HINSTANCE     hInstance;
+    LPCWSTR       lpstrFilter;
+    LPWSTR        lpstrCustomFilter;
+    DWORD         nMaxCustFilter;
+    DWORD         nFilterIndex;
+    LPWSTR        lpstrFile;
+    DWORD         nMaxFile;
+    LPWSTR        lpstrFileTitle;
+    DWORD         nMaxFileTitle;
+    LPCWSTR       lpstrInitialDir;
+    LPCWSTR       lpstrTitle;
+    DWORD         Flags;
+    WORD          nFileOffset;
+    WORD          nFileExtension;
+    LPCWSTR       lpstrDefExt;
+    DWORD         lCustData;
+    LPOFNHOOKPROC lpfnHook;
+    LPCWSTR       lpTemplateName;
+};
+#endif
+
 // #define USE_NATIVE_COLOR_DIALOG /* Testing purposes only */
 
 #ifdef Q_CC_MINGW  /* Add missing declarations for MinGW */
@@ -1719,8 +1776,6 @@ QString QWindowsFileDialogHelper::selectedNameFilter() const
     return m_data.selectedNameFilter();
 }
 
-#ifndef Q_OS_WINCE
-
 /*!
     \class QWindowsXpNativeFileDialog
     \brief Native Windows directory dialog for Windows XP using SHlib-functions.
@@ -1746,17 +1801,19 @@ public:
     virtual void doExec(HWND owner = 0);
     virtual QPlatformDialogHelper::DialogCode result() const { return m_result; }
 
+#ifndef Q_OS_WINCE
     int existingDirCallback(HWND hwnd, UINT uMsg, LPARAM lParam);
+#endif
 
 public slots:
     virtual void close() {}
 
 private:
-    typedef BOOL (APIENTRY *PtrGetOpenFileNameW)(LPOPENFILENAMEW);
-    typedef BOOL (APIENTRY *PtrGetSaveFileNameW)(LPOPENFILENAMEW);
+    typedef BOOL (APIENTRY *PtrGetOpenFileNameW)(OPENFILENAMEW *);
+    typedef BOOL (APIENTRY *PtrGetSaveFileNameW)(OPENFILENAMEW *);
 
     explicit QWindowsXpNativeFileDialog(const OptionsPtr &options, const QWindowsFileDialogSharedData &data);
-    void populateOpenFileName(OPENFILENAME *ofn, HWND owner) const;
+    void populateOpenFileName(OPENFILENAMEW *ofn, HWND owner) const;
     QList<QUrl> execExistingDir(HWND owner);
     QList<QUrl> execFileNames(HWND owner, int *selectedFilterIndex) const;
 
@@ -1778,7 +1835,11 @@ QWindowsXpNativeFileDialog *QWindowsXpNativeFileDialog::create(const OptionsPtr 
     // dynamically as not to create a dependency on Comdlg32, which
     // is used on XP only.
     if (!m_getOpenFileNameW) {
+#ifdef Q_OS_WINCE
+        QSystemLibrary library(QStringLiteral("COREDLL"));
+#else
         QSystemLibrary library(QStringLiteral("Comdlg32"));
+#endif
         m_getOpenFileNameW = (PtrGetOpenFileNameW)(library.resolve("GetOpenFileNameW"));
         m_getSaveFileNameW = (PtrGetSaveFileNameW)(library.resolve("GetSaveFileNameW"));
     }
@@ -1816,6 +1877,7 @@ void QWindowsXpNativeFileDialog::doExec(HWND owner)
     }
 }
 
+#ifndef Q_OS_WINCE
 // Callback for QWindowsNativeXpFileDialog directory dialog.
 // MFC Directory Dialog. Contrib: Steve Williams (minor parts from Scott Powers)
 
@@ -1854,9 +1916,12 @@ int QWindowsXpNativeFileDialog::existingDirCallback(HWND hwnd, UINT uMsg, LPARAM
     }
     return 0;
 }
+#endif
 
 QList<QUrl> QWindowsXpNativeFileDialog::execExistingDir(HWND owner)
 {
+    QList<QUrl> selectedFiles;
+#ifndef Q_OS_WINCE
     BROWSEINFO bi;
     wchar_t initPath[MAX_PATH];
     initPath[0] = 0;
@@ -1867,7 +1932,6 @@ QList<QUrl> QWindowsXpNativeFileDialog::execExistingDir(HWND owner)
     bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_STATUSTEXT | BIF_NEWDIALOGSTYLE;
     bi.lpfn = xpFileDialogGetExistingDirCallbackProc;
     bi.lParam = LPARAM(this);
-    QList<QUrl> selectedFiles;
     if (qt_LpItemIdList pItemIDList = SHBrowseForFolder(&bi)) {
         wchar_t path[MAX_PATH];
         path[0] = 0;
@@ -1879,14 +1943,15 @@ QList<QUrl> QWindowsXpNativeFileDialog::execExistingDir(HWND owner)
             pMalloc->Release();
         }
     }
+#endif
     return selectedFiles;
 }
 
 // Open/Save files
-void QWindowsXpNativeFileDialog::populateOpenFileName(OPENFILENAME *ofn, HWND owner) const
+void QWindowsXpNativeFileDialog::populateOpenFileName(OPENFILENAMEW *ofn, HWND owner) const
 {
-    ZeroMemory(ofn, sizeof(OPENFILENAME));
-    ofn->lStructSize = sizeof(OPENFILENAME);
+    ZeroMemory(ofn, sizeof(OPENFILENAMEW));
+    ofn->lStructSize = sizeof(OPENFILENAMEW);
     ofn->hwndOwner = owner;
 
     // Create a buffer with the filter strings.
@@ -1942,7 +2007,7 @@ void QWindowsXpNativeFileDialog::populateOpenFileName(OPENFILENAME *ofn, HWND ow
 QList<QUrl> QWindowsXpNativeFileDialog::execFileNames(HWND owner, int *selectedFilterIndex) const
 {
     *selectedFilterIndex = -1;
-    OPENFILENAME ofn;
+    OPENFILENAMEW ofn;
     populateOpenFileName(&ofn, owner);
     QList<QUrl> result;
     const bool isSave = m_options->acceptMode() == QFileDialogOptions::AcceptSave;
@@ -2044,8 +2109,6 @@ QString QWindowsXpFileDialogHelper::selectedNameFilter() const
 {
     return m_data.selectedNameFilter();
 }
-
-#endif // Q_OS_WINCE
 
 /*!
     \class QWindowsNativeColorDialog
@@ -2179,7 +2242,11 @@ bool useHelper(QPlatformTheme::DialogType type)
         return false;
     switch (type) {
     case QPlatformTheme::FileDialog:
+#ifndef Q_OS_WINCE // Note: "Windows XP Professional x64 Edition has version number WV_5_2 (WV_2003).
         return QSysInfo::windowsVersion() >= QSysInfo::WV_XP;
+#else
+        return true;
+#endif // Q_OS_WINCE
     case QPlatformTheme::ColorDialog:
 #ifdef USE_NATIVE_COLOR_DIALOG
         return true;
@@ -2209,7 +2276,7 @@ QPlatformDialogHelper *createHelper(QPlatformTheme::DialogType type)
         if (QSysInfo::windowsVersion() > QSysInfo::WV_2003)
             return new QWindowsFileDialogHelper();
 #else
-        return new QWindowsFileDialogHelper();
+        return new QWindowsXpFileDialogHelper();
 #endif // Q_OS_WINCE
     case QPlatformTheme::ColorDialog:
 #ifdef USE_NATIVE_COLOR_DIALOG

@@ -334,6 +334,7 @@ static void setWindowOpacity(HWND hwnd, Qt::WindowFlags flags, bool hasAlpha, bo
     Q_UNUSED(hwnd);
     Q_UNUSED(flags);
     Q_UNUSED(hasAlpha);
+    Q_UNUSED(openGL);
     Q_UNUSED(level);
 #else
     if (QWindowsWindow::setWindowLayered(hwnd, flags, hasAlpha, level)) {
@@ -635,7 +636,7 @@ QWindowsWindowData
                                  context->frameX, context->frameY,
                                  context->frameWidth, context->frameHeight,
                                  parentHandle, NULL, appinst, NULL);
-#ifdef Q_OS_WINCE
+#if 0//def Q_OS_WINCE
     if (DisableGestures(result.hwnd, TGF_GID_ALL, TGF_SCOPE_WINDOW))
         EnableGestures(result.hwnd, TGF_GID_DIRECTMANIPULATION, TGF_SCOPE_WINDOW);
 #endif

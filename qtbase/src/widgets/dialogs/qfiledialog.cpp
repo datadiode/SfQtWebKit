@@ -59,9 +59,6 @@
 #else
 #define Q_EMBEDDED_SMALLSCREEN
 #include "ui_qfiledialog_embedded.h"
-#if defined(Q_OS_WINCE)
-extern bool qt_priv_ptr_valid;
-#endif
 #endif
 #if defined(Q_OS_UNIX)
 #include <pwd.h>
@@ -2787,10 +2784,12 @@ void QFileDialogPrivate::init(const QUrl &directory, const QString &nameFilter,
 #endif
 
 #if defined(Q_EMBEDDED_SMALLSCREEN)
-    qFileDialogUi->lookInLabel->setVisible(false);
-    qFileDialogUi->fileNameLabel->setVisible(false);
-    qFileDialogUi->fileTypeLabel->setVisible(false);
-    qFileDialogUi->sidebar->hide();
+    if (!nativeDialogInUse) {
+        qFileDialogUi->lookInLabel->setVisible(false);
+        qFileDialogUi->fileNameLabel->setVisible(false);
+        qFileDialogUi->fileTypeLabel->setVisible(false);
+        qFileDialogUi->sidebar->hide();
+    }
 #endif
 
     q->resize(q->sizeHint());
