@@ -1958,16 +1958,17 @@ void QWindowsXpNativeFileDialog::populateOpenFileName(OPENFILENAMEW *ofn, HWND o
     int totalStringLength = 0;
     QList<FilterSpec> specs =
         filterSpecs(m_options->nameFilters(), m_options->options() & QFileDialogOptions::HideNameFilterDetails, &totalStringLength);
-    const int size = specs.size();
-    wchar_t *ptr = new wchar_t[totalStringLength + 2 * size + 1];
-    ofn->lpstrFilter = ptr;
-    foreach (const FilterSpec &spec, specs) {
-        ptr += spec.description.toWCharArray(ptr);
-        *ptr++ = 0;
-        ptr += spec.filter.toWCharArray(ptr);
-        *ptr++ = 0;
+    if (const int size = specs.size()) {
+        wchar_t *ptr = new wchar_t[totalStringLength + 2 * size + 1];
+        ofn->lpstrFilter = ptr;
+        foreach (const FilterSpec &spec, specs) {
+            ptr += spec.description.toWCharArray(ptr);
+            *ptr++ = 0;
+            ptr += spec.filter.toWCharArray(ptr);
+            *ptr++ = 0;
+        }
+        *ptr = 0;
     }
-    *ptr = 0;
     const int nameFilterIndex = indexOfNameFilter(m_options->nameFilters(), m_data.selectedNameFilter());
     if (nameFilterIndex >= 0)
         ofn->nFilterIndex = nameFilterIndex + 1; // 1..n based.
