@@ -83,6 +83,7 @@ INCLUDEPATH += \
     $$SOURCE_DIR/platform/text \
     $$SOURCE_DIR/platform/text/transcoder \
     $$SOURCE_DIR/plugins \
+    $$SOURCE_DIR/plugins/win \
     $$SOURCE_DIR/rendering \
     $$SOURCE_DIR/rendering/mathml \
     $$SOURCE_DIR/rendering/shapes \

@@ -2,6 +2,7 @@
 
 PRECOMPILED_HEADER = ../corelib/global/qt_pch.h
 INCLUDEPATH += $$PWD
+INCLUDEPATH += $$QT_SOURCE_TREE/src/corelib/global
 
 HEADERS += kernel/qauthenticator.h \
 	   kernel/qauthenticator_p.h \

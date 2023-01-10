@@ -9,7 +9,7 @@ SUBDIRS = \
     wbmp \
     webp
 
-wince:SUBDIRS -= jp2
+wince:SUBDIRS -= jp2 tiff
 
 winrt {
     SUBDIRS -= tiff \

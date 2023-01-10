@@ -6,6 +6,7 @@ mac:LIBS_PRIVATE += -lz
 
 DEFINES += QT_NO_CAST_FROM_ASCII
 PRECOMPILED_HEADER = ../corelib/global/qt_pch.h
+INCLUDEPATH += $$QT_SOURCE_TREE/src/corelib/global
 
 include(cfsocketnotifier/cfsocketnotifier.pri)
 include(cglconvenience/cglconvenience.pri)

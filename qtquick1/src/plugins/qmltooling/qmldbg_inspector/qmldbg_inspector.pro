@@ -6,6 +6,7 @@ PLUGIN_CLASS_NAME = QtQuick1Plugin
 load(qt_plugin)
 
 INCLUDEPATH *= $$PWD
+INCLUDEPATH += $$PWD/editor
 
 SOURCES += \
     qtquick1plugin.cpp \

@@ -24,7 +24,7 @@ SOURCES += \
         $$PWD/qplatformprintplugin.cpp \
         $$PWD/qplatformprintersupport.cpp
 
-win32 {
+win32:!wince: {
         HEADERS += \
                 $$PWD/qprintengine_win_p.h
         SOURCES += \

@@ -2,6 +2,7 @@
 
 # Only used on platforms with CONFIG += precompile_header
 PRECOMPILED_HEADER = kernel/qt_widgets_pch.h
+INCLUDEPATH += $$QT_SOURCE_TREE/src/widgets/kernel
 
 KERNEL_P= kernel
 HEADERS += \

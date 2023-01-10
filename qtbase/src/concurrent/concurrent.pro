@@ -10,6 +10,7 @@ QMAKE_DOCS = $$PWD/doc/qtconcurrent.qdocconf
 load(qt_module)
 
 PRECOMPILED_HEADER = ../corelib/global/qt_pch.h
+INCLUDEPATH += $$QT_SOURCE_TREE/src/corelib/global
 
 SOURCES += \
         qtconcurrentfilter.cpp \

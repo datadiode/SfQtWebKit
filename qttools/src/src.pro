@@ -13,8 +13,8 @@ qtHaveModule(widgets) {
     }
 }
 
-SUBDIRS += linguist \
-    qtplugininfo
+!wince: SUBDIRS += linguist
+SUBDIRS += qtplugininfo
 if(!android|android_app):!ios: SUBDIRS += qtpaths
 
 mac {
@@ -27,7 +27,7 @@ android {
 
 qtHaveModule(dbus): SUBDIRS += qdbus
 
-win32|winrt:SUBDIRS += windeployqt
+if(!wince):win32|winrt:SUBDIRS += windeployqt
 winrt:SUBDIRS += winrtrunner
 qtHaveModule(gui):!android:!ios:!qnx:!wince*:!winrt*:SUBDIRS += qtdiag
 

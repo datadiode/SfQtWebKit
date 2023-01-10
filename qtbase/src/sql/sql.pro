@@ -13,6 +13,7 @@ load(qt_module)
 
 DEFINES += QT_NO_CAST_FROM_ASCII
 PRECOMPILED_HEADER = ../corelib/global/qt_pch.h
+INCLUDEPATH += $$QT_SOURCE_TREE/src/corelib/global
 SQL_P = sql
 
 include(kernel/kernel.pri)

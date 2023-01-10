@@ -163,6 +163,8 @@ contains(QT_CONFIG, zlib) {
 contains(QT_CONFIG,icu) {
     include($$PWD/../../3rdparty/icu_dependency.pri)
 
+    INCLUDEPATH += $$ICU_DIST/include
+
     SOURCES += tools/qlocale_icu.cpp \
                tools/qcollator_icu.cpp \
                tools/qtimezoneprivate_icu.cpp

@@ -2,6 +2,7 @@
 
 # Only used on platforms with CONFIG += precompile_header
 PRECOMPILED_HEADER = kernel/qt_gui_pch.h
+INCLUDEPATH += $$QT_SOURCE_TREE/src/gui/kernel
 
 
 KERNEL_P= kernel

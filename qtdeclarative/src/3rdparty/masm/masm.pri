@@ -66,7 +66,7 @@ HEADERS += $$PWD/yarr/*.h
 #
 # Generate RegExpJitTables.h
 #
-GENERATEDDIR = .generated
+GENERATEDDIR = $$OUT_PWD/.generated
 debug_and_release {
     CONFIG(debug, debug|release) {
         GENERATEDDIR = $$GENERATEDDIR/debug

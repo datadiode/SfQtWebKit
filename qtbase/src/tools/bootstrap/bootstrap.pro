@@ -128,6 +128,8 @@ win32:SOURCES += ../../corelib/io/qfilesystemengine_win.cpp \
                  ../../corelib/kernel/qcoreapplication_win.cpp \
                  ../../corelib/plugin/qsystemlibrary.cpp \
 
+wince:SOURCES += ../../corelib/kernel/qfunctions_wince.cpp
+
 mac {
     SOURCES += \
         ../../corelib/kernel/qcoreapplication_mac.cpp \
@@ -155,7 +157,7 @@ macx {
 if(contains(QT_CONFIG, zlib)|cross_compile):include(../../3rdparty/zlib.pri)
 else:include(../../3rdparty/zlib_dependency.pri)
 
-win32:LIBS += -luser32 -lole32 -ladvapi32 -lshell32
+win32:!wince:LIBS += -luser32 -lole32 -ladvapi32 -lshell32
 
 lib.CONFIG = dummy_install
 INSTALLS += lib
