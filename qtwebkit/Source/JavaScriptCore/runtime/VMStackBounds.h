@@ -39,7 +39,7 @@ public:
     {
     }
 
-    bool isSafeToRecurse() const { return m_bounds.isSafeToRecurse(requiredCapacity()); }
+    bool isSafeToRecurse() const { return true/*m_bounds.isSafeToRecurse(requiredCapacity())*/; }
 
 private:
     inline size_t requiredCapacity() const
