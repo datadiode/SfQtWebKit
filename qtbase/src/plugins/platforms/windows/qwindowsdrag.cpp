@@ -797,10 +797,9 @@ QPixmap QWindowsDrag::defaultCursor(Qt::DropAction action) const
 Qt::DropAction QWindowsDrag::drag(QDrag *drag)
 {
     // TODO: Accessibility handling?
-    QMimeData *dropData = drag->mimeData();
     Qt::DropAction dragResult = Qt::IgnoreAction;
-
-    DWORD resultEffect;
+#if !defined (Q_OS_WINCE)
+    QMimeData *dropData = drag->mimeData();
     QWindowsOleDropSource *windowDropSource = new QWindowsOleDropSource(this);
     windowDropSource->createCursors();
     QWindowsOleDataObject *dropDataObject = new QWindowsOleDataObject(dropData);
@@ -808,6 +807,7 @@ Qt::DropAction QWindowsDrag::drag(QDrag *drag)
     const DWORD allowedEffects = translateToWinDragEffects(possibleActions);
     qCDebug(lcQpaMime) << '>' << __FUNCTION__ << "possible Actions=0x"
         << hex << int(possibleActions) << "effects=0x" << allowedEffects << dec;
+    DWORD resultEffect;
     const HRESULT r = DoDragDrop(dropDataObject, windowDropSource, allowedEffects, &resultEffect);
     const DWORD  reportedPerformedEffect = dropDataObject->reportedPerformedEffect();
     if (r == DRAGDROP_S_DROP) {
@@ -831,6 +831,7 @@ Qt::DropAction QWindowsDrag::drag(QDrag *drag)
     qCDebug(lcQpaMime) << '<' << __FUNCTION__ << hex << "allowedEffects=0x" << allowedEffects
         << "reportedPerformedEffect=0x" << reportedPerformedEffect
         <<  " resultEffect=0x" << resultEffect << "hr=0x" << int(r) << dec << "dropAction=" << dragResult;
+#endif // !Q_OS_WINCE
     return dragResult;
 }
 

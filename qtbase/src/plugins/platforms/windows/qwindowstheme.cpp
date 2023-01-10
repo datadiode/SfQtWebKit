@@ -711,7 +711,7 @@ QPixmap QWindowsTheme::fileIconPixmap(const QFileInfo &fileInfo, const QSizeF &s
                 return pixmap;
         }
     }
-
+#ifndef Q_OS_WINCE
     SHFILEINFO info;
     unsigned int flags =
 #ifndef Q_OS_WINCE
@@ -766,7 +766,7 @@ QPixmap QWindowsTheme::fileIconPixmap(const QFileInfo &fileInfo, const QSizeF &s
         }
         DestroyIcon(info.hIcon);
     }
-
+#endif
     if (!pixmap.isNull())
         return pixmap;
     return QPlatformTheme::fileIconPixmap(fileInfo, size);
