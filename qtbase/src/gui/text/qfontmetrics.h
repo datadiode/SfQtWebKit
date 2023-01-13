@@ -86,6 +86,13 @@ public:
     int width(const QString &, int len, int flags) const;
 
     int width(QChar) const;
+
+    // Alias width() to horizontalAdvance() to ease backporting of Endorphin browser
+    inline int horizontalAdvance(const QString &text, int len = -1) const
+        { return width(text, len); }
+    inline int horizontalAdvance(QChar ch) const
+        { return width(ch); }
+
 #if QT_VERSION < QT_VERSION_CHECK(6,0,0)
     QT_DEPRECATED int charWidth(const QString &str, int pos) const;
 #endif
