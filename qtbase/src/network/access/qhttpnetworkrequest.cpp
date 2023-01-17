@@ -144,6 +144,11 @@ QByteArray QHttpNetworkRequestPrivate::header(const QHttpNetworkRequest &request
     QList<QPair<QByteArray, QByteArray> >::const_iterator it = fields.constBegin();
     QList<QPair<QByteArray, QByteArray> >::const_iterator endIt = fields.constEnd();
     for (; it != endIt; ++it) {
+        //Skip empty headers except for Host
+        if (it->second.isEmpty() && qstricmp(it->first.data(), "host") != 0) {
+            qWarning("skipping HTTP request header with name %s and no value.", it->first.data());
+            continue;
+        }
         ba += it->first;
         ba += ": ";
         ba += it->second;
@@ -170,7 +175,7 @@ QByteArray QHttpNetworkRequestPrivate::header(const QHttpNetworkRequest &request
     } else {
         ba += "\r\n";
     }
-     return ba;
+    return ba;
 }
 
 
