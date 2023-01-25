@@ -296,7 +296,9 @@ struct QWindowsContextPrivate {
 #if !defined(QT_NO_TABLETEVENT) && !defined(Q_OS_WINCE)
     QScopedPointer<QWindowsTabletSupport> m_tabletSupport;
 #endif
+#ifndef Q_OS_WINCE
     const HRESULT m_oleInitializeResult;
+#endif
     const QByteArray m_eventType;
     QWindow *m_lastActiveWindow;
     bool m_asyncExpose;
@@ -304,7 +306,9 @@ struct QWindowsContextPrivate {
 
 QWindowsContextPrivate::QWindowsContextPrivate()
     : m_systemInfo(0)
+#ifndef Q_OS_WINCE
     , m_oleInitializeResult(OleInitialize(NULL))
+#endif
     , m_eventType(QByteArrayLiteral("windows_generic_MSG"))
     , m_lastActiveWindow(0), m_asyncExpose(0)
 {
@@ -323,10 +327,12 @@ QWindowsContextPrivate::QWindowsContextPrivate()
         m_systemInfo |= QWindowsContext::SI_RTL_Extensions;
         m_keyMapper.setUseRTLExtensions(true);
     }
+#ifndef Q_OS_WINCE
     if (FAILED(m_oleInitializeResult)) {
        qWarning() << "QWindowsContext: OleInitialize() failed: "
            << QWindowsContext::comErrorString(m_oleInitializeResult);
     }
+#endif
 }
 
 QWindowsContext::QWindowsContext() :
@@ -352,9 +358,10 @@ QWindowsContext::~QWindowsContext()
     d->m_tabletSupport.reset(); // Destroy internal window before unregistering classes.
 #endif
     unregisterWindowClasses();
+#ifndef Q_OS_WINCE
     if (d->m_oleInitializeResult == S_OK || d->m_oleInitializeResult == S_FALSE)
         OleUninitialize();
-
+#endif
     d->m_screenManager.clearScreens(); // Order: Potentially calls back to the windows.
     m_instance = 0;
 }
