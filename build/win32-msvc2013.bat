@@ -23,6 +23,6 @@ CALL "C:\Ruby31-x64\bin\setrbvars.cmd"
 SET "INCLUDE=%INCLUDE%;%OPENSSL_INC%;%ICU_DIST%\include;"
 SET "LIB=%LIB%;%ICU_DIST%\lib;"
 
-CALL %QT_SOURCE%\configure.bat -rtti -no-harfbuzz -ssl -openssl -icu -opengl desktop -opensource -nomake tests -nomake examples -nomake tools -skip webengine -skip translations -confirm-license -platform win32-msvc2012 -release 2>&1 | perl.exe %QT_SOURCE%\build\tools\tee.pl -t "%QT_BUILD%\logfile.log"
+CALL %QT_SOURCE%\configure.bat -rtti -no-harfbuzz -ssl -openssl -icu -opengl desktop -opensource -nomake tests -nomake examples -nomake tools -skip translations -confirm-license -platform win32-msvc2012 -release 2>&1 | perl.exe %QT_SOURCE%\build\tools\tee.pl -t "%QT_BUILD%\logfile.log"
 
 nmake.exe 2>&1 | perl.exe %QT_SOURCE%\build\tools\tee.pl -t -a "%QT_BUILD%\logfile.log"

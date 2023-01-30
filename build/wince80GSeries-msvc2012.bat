@@ -34,7 +34,7 @@ SET OPENGL_ES2=%QT_BUILD%\egl
 
 SETLOCAL
 	SET "INCLUDE=%INCLUDE%;%OPENSSL_INC%;"
-	CALL %QT_SOURCE%\configure.bat -opensource -confirm-license -rtti -no-harfbuzz -ssl -openssl -icu -opengl es2 -nomake tests -nomake examples -nomake tools -skip webengine -skip translations -platform win32-msvc2012 -xplatform %QMAKESPEC% -release 2>&1 | perl.exe %QT_SOURCE%\build\tools\tee.pl -t "%QT_BUILD%\logfile.log"
+	CALL %QT_SOURCE%\configure.bat -opensource -confirm-license -rtti -no-harfbuzz -ssl -openssl -icu -opengl es2 -nomake tests -nomake examples -nomake tools -skip translations -platform win32-msvc2012 -xplatform %QMAKESPEC% -release 2>&1 | perl.exe %QT_SOURCE%\build\tools\tee.pl -t "%QT_BUILD%\logfile.log"
 	REM Change QT_QPA_DEFAULT_PLATFORM_NAME from "windows" to "windows:fontengine=freetype"
 	gsar -s:x20QT_QPA_DEFAULT_PLATFORM_NAME:x20:x22windows:x22 -r:x20QT_QPA_DEFAULT_PLATFORM_NAME:x20:x22windows::fontengine=freetype:x22 -o "%QT_BUILD%\qtBase\src\corelib\global\qconfig.h"
 ENDLOCAL
