@@ -1,5 +1,0 @@
-include_rules = [
-  "+mojo/application",
-  "+mojo/converters",
-  "+mojo/public",
-]
