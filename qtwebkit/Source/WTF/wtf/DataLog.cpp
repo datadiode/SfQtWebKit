@@ -46,7 +46,9 @@
 // we will append ".<pid>.txt" where <pid> is the PID.
 
 // This path won't work on Windows, make sure to change to something like C:\\Users\\<more path>\\log.txt.
-#define DATA_LOG_FILENAME "/tmp/WTFLog"
+#if OS(WINCE)
+#define DATA_LOG_FILENAME "\\Temp\\WTFLog"
+#endif
 
 namespace WTF {
 
@@ -66,7 +68,7 @@ static void initializeLogFileOnce()
 #endif
     char actualFilename[1024];
 
-#if PLATFORM(WIN)
+#if PLATFORM(WIN) || OS(WINCE)
     _snprintf(actualFilename, sizeof(actualFilename), "%s.%d.txt", filename, GetCurrentProcessId());
 #else
     snprintf(actualFilename, sizeof(actualFilename), "%s.%d.txt", filename, getpid());
