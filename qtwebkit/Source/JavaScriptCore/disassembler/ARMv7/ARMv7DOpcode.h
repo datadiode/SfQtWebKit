@@ -54,9 +54,9 @@ public:
     const char* disassemble(uint16_t*& currentPC);
 
 protected:
-    const unsigned RegSP = 0xd;
-    const unsigned RegLR = 0xe;
-    const unsigned RegPC = 0xf;
+    static const unsigned RegSP = 0xd;
+    static const unsigned RegLR = 0xe;
+    static const unsigned RegPC = 0xf;
 
     void fetchOpcode(uint16_t*&);
     bool is32BitInstruction() { return (m_opcode & 0xfffff800) > 0xe000; }

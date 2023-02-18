@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "config.h"
@@ -29,7 +29,14 @@
 #if USE(UDIS86)
 
 #include "MacroAssemblerCodeRef.h"
-#include "udis86.h"
+#include "udis86/udis86.h"
+
+// #define snprintf as found in angleutils.h
+// Copyright (c) 2002-2010 The ANGLE Project Authors
+// SPDX-License-Identifier: BSD-3-Clause
+#if defined(_MSC_VER) && _MSC_VER < 1900
+#define snprintf _snprintf
+#endif
 
 namespace JSC {
 
@@ -45,7 +52,7 @@ bool tryToDisassemble(const MacroAssemblerCodePtr& codePtr, size_t size, const c
 #endif
     ud_set_pc(&disassembler, bitwise_cast<uintptr_t>(codePtr.executableAddress()));
     ud_set_syntax(&disassembler, UD_SYN_ATT);
-    
+
     uint64_t currentPC = disassembler.pc;
     while (ud_disassemble(&disassembler)) {
         char pcString[20];
@@ -53,7 +60,7 @@ bool tryToDisassemble(const MacroAssemblerCodePtr& codePtr, size_t size, const c
         out.printf("%s%16s: %s\n", prefix, pcString, ud_insn_asm(&disassembler));
         currentPC = disassembler.pc;
     }
-    
+
     return true;
 }
 

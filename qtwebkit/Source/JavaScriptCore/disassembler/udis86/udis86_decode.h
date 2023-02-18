@@ -198,7 +198,7 @@ struct ud_lookup_table_list_entry {
 };
      
 
-static inline unsigned int sse_pfx_idx( const unsigned int pfx ) 
+static /*inline*/ unsigned int sse_pfx_idx( const unsigned int pfx ) 
 {
     /* 00 = 0
      * f2 = 1
@@ -208,7 +208,7 @@ static inline unsigned int sse_pfx_idx( const unsigned int pfx )
     return ( ( pfx & 0xf ) + 1 ) / 2;
 }
 
-static inline unsigned int mode_idx( const unsigned int mode ) 
+static /*inline*/ unsigned int mode_idx( const unsigned int mode ) 
 {
     /* 16 = 0
      * 32 = 1
@@ -217,7 +217,7 @@ static inline unsigned int mode_idx( const unsigned int mode )
     return ( mode / 32 );
 }
 
-static inline unsigned int modrm_mod_idx( const unsigned int mod )
+static /*inline*/ unsigned int modrm_mod_idx( const unsigned int mod )
 {
     /* !11 = 0
      *  11 = 1
@@ -225,7 +225,7 @@ static inline unsigned int modrm_mod_idx( const unsigned int mod )
     return ( mod + 1 ) / 4;
 }
 
-static inline unsigned int vendor_idx( const unsigned int vendor )
+static /*inline*/ unsigned int vendor_idx( const unsigned int vendor )
 {
     switch ( vendor ) {
         case UD_VENDOR_AMD: return 0;
@@ -235,12 +235,12 @@ static inline unsigned int vendor_idx( const unsigned int vendor )
     }
 }
 
-static inline unsigned int is_group_ptr( uint16_t ptr )
+static /*inline*/ unsigned int is_group_ptr( uint16_t ptr )
 {
     return ( 0x8000 & ptr );
 }
 
-static inline unsigned int group_idx( uint16_t ptr )
+static /*inline*/ unsigned int group_idx( uint16_t ptr )
 {
     return ( ~0x8000 & ptr );
 }

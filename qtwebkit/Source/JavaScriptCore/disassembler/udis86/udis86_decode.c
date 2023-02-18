@@ -34,7 +34,6 @@
 #include "udis86_decode.h"
 #include <wtf/Assertions.h>
 
-#define dbg(x, n...)
 /* #define dbg printf */
 
 #ifndef __UD_STANDALONE__
@@ -52,7 +51,7 @@ static int
 decode_ext(struct ud *u, uint16_t ptr);
 
 
-static inline int
+static /*inline*/ int
 eff_opr_mode(int dis_mode, int rex_w, int pfx_opr)
 {
   if (dis_mode == 64) {
@@ -66,7 +65,7 @@ eff_opr_mode(int dis_mode, int rex_w, int pfx_opr)
 }
 
 
-static inline int
+static /*inline*/ int
 eff_adr_mode(int dis_mode, int pfx_adr)
 {
   if (dis_mode == 64) {
@@ -197,7 +196,7 @@ decode_prefixes(struct ud *u)
 }
 
 
-static inline unsigned int modrm( struct ud * u )
+static /*inline*/ unsigned int modrm( struct ud * u )
 {
     if ( !u->have_modrm ) {
         u->modrm = ud_inp_next( u );
@@ -941,7 +940,7 @@ static int gen_hex( struct ud *u )
 }
 
 
-static inline int
+static /*inline*/ int
 decode_insn(struct ud *u, uint16_t ptr)
 {
   ASSERT((ptr & 0x8000) == 0);
@@ -964,7 +963,7 @@ decode_insn(struct ud *u, uint16_t ptr)
  *    valid entry in the table, decode the operands, and read the final
  *    byte to resolve the menmonic.
  */
-static inline int
+static /*inline*/ int
 decode_3dnow(struct ud* u)
 {
   uint16_t ptr;
@@ -1075,7 +1074,7 @@ decode_ext(struct ud *u, uint16_t ptr)
 }
 
 
-static inline int
+static /*inline*/ int
 decode_opcode(struct ud *u)
 {
   uint16_t ptr;

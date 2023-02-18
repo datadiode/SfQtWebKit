@@ -31,6 +31,13 @@
 #include "ARMv7/ARMv7DOpcode.h"
 #include "MacroAssemblerCodeRef.h"
 
+// #define snprintf as found in angleutils.h
+// Copyright (c) 2002-2010 The ANGLE Project Authors
+// SPDX-License-Identifier: BSD-3-Clause
+#if defined(_MSC_VER) && _MSC_VER < 1900
+#define snprintf _snprintf
+#endif
+
 namespace JSC {
 
 bool tryToDisassemble(const MacroAssemblerCodePtr& codePtr, size_t size, const char* prefix, PrintStream& out)

@@ -108,7 +108,7 @@ llint.depends = $$LLINT_DEPENDENCY
 llint.commands = ruby $$llint.script $$LLINT_ASSEMBLER ${QMAKE_FILE_IN} ${QMAKE_FILE_OUT}
 GENERATORS += llint
 
-linux-*:if(isEqual(QT_ARCH, "i386")|isEqual(QT_ARCH, "x86_64")) {
+if(isEqual(QT_ARCH, "i386")|isEqual(QT_ARCH, "x86_64")) {
     # GENERATOR: disassembler
     disassembler.output = udis86_itab.c
     disassembler.input = DISASSEMBLER_FILES

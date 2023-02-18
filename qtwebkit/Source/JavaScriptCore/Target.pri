@@ -326,7 +326,7 @@ SOURCES += \
     tools/CodeProfiling.cpp \
     yarr/YarrJIT.cpp \
 
-linux-*:if(isEqual(QT_ARCH, "i386")|isEqual(QT_ARCH, "x86_64")) {
+if(isEqual(QT_ARCH, "i386")|isEqual(QT_ARCH, "x86_64")) {
     SOURCES += \
         disassembler/UDis86Disassembler.cpp \
         disassembler/udis86/udis86.c \
@@ -336,6 +336,22 @@ linux-*:if(isEqual(QT_ARCH, "i386")|isEqual(QT_ARCH, "x86_64")) {
         disassembler/udis86/udis86_syn-att.c \
         disassembler/udis86/udis86_syn-intel.c \
         disassembler/udis86/udis86_syn.c \
+}
+
+wince:isEqual(QT_ARCH, "arm"):{
+    asm_compiler.commands = armasm ${QMAKE_FILE_IN} ${QMAKE_FILE_OUT}
+    asm_compiler.output = ${QMAKE_VAR_OBJECTS_DIR}${QMAKE_FILE_BASE}$${first(QMAKE_EXT_OBJ)}
+    asm_compiler.input = ASM_SOURCES
+    asm_compiler.variable_out = OBJECTS
+    asm_compiler.name = compiling[asm] ${QMAKE_FILE_IN}
+    silent:asm_compiler.commands = @echo compiling[asm] ${QMAKE_FILE_IN} && $$asm_compiler.commands
+    QMAKE_EXTRA_COMPILERS += asm_compiler
+
+    ASM_SOURCES += jit/JITStubs_MSVC_ARM.asm
+
+    SOURCES += \
+        disassembler/ARMv7Disassembler.cpp \
+        disassembler/ARMv7/ARMv7DOpcode.cpp
 }
 
 win32:!mingw:isEqual(QT_ARCH, "x86_64"):{
