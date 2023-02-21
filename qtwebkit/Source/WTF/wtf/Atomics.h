@@ -235,13 +235,13 @@ inline void compilerFence()
 // below it.
 inline void armV7_dmb()
 {
-    asm volatile("dmb" ::: "memory");
+    __dmb(_ARM_BARRIER_SY);
 }
 
 // Like the above, but only affects stores.
 inline void armV7_dmb_st()
 {
-    asm volatile("dmb st" ::: "memory");
+    __dmb(_ARM_BARRIER_ST);
 }
 
 inline void loadLoadFence() { armV7_dmb(); }
