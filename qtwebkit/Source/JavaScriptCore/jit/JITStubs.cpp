@@ -199,7 +199,7 @@ SYMBOL_STRING(ctiOpThrowNotCaught) ":" "\n"
     "ret" "\n"
 );
 
-#elif (COMPILER(GCC) || COMPILER(RVCT)) && CPU(ARM_THUMB2)
+#elif (COMPILER(GCC) || COMPILER(MSVC) || COMPILER(RVCT)) && CPU(ARM_THUMB2)
 
 #define THUNK_RETURN_ADDRESS_OFFSET      0x38
 #define PRESERVED_RETURN_ADDRESS_OFFSET  0x3C
@@ -828,6 +828,8 @@ __asm void ctiOpThrowNotCaught()
     bx lr
 }
 
+#elif COMPILER(MSVC) && CPU(ARM_THUMB2)
+
 #elif COMPILER(RVCT) && CPU(ARM_TRADITIONAL)
 
 __asm EncodedJSValue ctiTrampoline(void*, JSStack*, CallFrame*, void* /*unused1*/, void* /*unused2*/, VM*)
@@ -882,44 +884,41 @@ void performPlatformSpecificJITAssertions(VM* vm)
         return;
 
 #if CPU(ARM_THUMB2)
-    // Unfortunate the arm compiler does not like the use of offsetof on JITStackFrame (since it contains non POD types),
-    // and the OBJECT_OFFSETOF macro does not appear constantish enough for it to be happy with its use in COMPILE_ASSERT
-    // macros.
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedReturnAddress) == PRESERVED_RETURN_ADDRESS_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR4) == PRESERVED_R4_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR5) == PRESERVED_R5_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR6) == PRESERVED_R6_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR7) == PRESERVED_R7_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR8) == PRESERVED_R8_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR9) == PRESERVED_R9_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR10) == PRESERVED_R10_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR11) == PRESERVED_R11_OFFSET);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedReturnAddress) == PRESERVED_RETURN_ADDRESS_OFFSET, preservedReturnAddress);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR4) == PRESERVED_R4_OFFSET, preservedR4);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR5) == PRESERVED_R5_OFFSET, preservedR5);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR6) == PRESERVED_R6_OFFSET, preservedR6);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR7) == PRESERVED_R7_OFFSET, preservedR7);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR8) == PRESERVED_R8_OFFSET, preservedR8);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR9) == PRESERVED_R9_OFFSET, preservedR9);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR10) == PRESERVED_R10_OFFSET, preservedR10);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR11) == PRESERVED_R11_OFFSET, preservedR11);
 
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, stack) == REGISTER_FILE_OFFSET);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, stack) == REGISTER_FILE_OFFSET, stack);
     // The fifth argument is the first item already on the stack.
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, unused1) == FIRST_STACK_ARGUMENT);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, unused1) == FIRST_STACK_ARGUMENT, unused1);
 
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, thunkReturnAddress) == THUNK_RETURN_ADDRESS_OFFSET);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, thunkReturnAddress) == THUNK_RETURN_ADDRESS_OFFSET, thunkReturnAddress);
 
 #elif CPU(ARM_TRADITIONAL)
 
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, thunkReturnAddress) == THUNK_RETURN_ADDRESS_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR4) == PRESERVEDR4_OFFSET);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, thunkReturnAddress) == THUNK_RETURN_ADDRESS_OFFSET, thunkReturnAddress);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedR4) == PRESERVEDR4_OFFSET, preservedR4);
 
 
 #elif CPU(MIPS)
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedGP) == PRESERVED_GP_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedS0) == PRESERVED_S0_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedS1) == PRESERVED_S1_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedS2) == PRESERVED_S2_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedReturnAddress) == PRESERVED_RETURN_ADDRESS_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, thunkReturnAddress) == THUNK_RETURN_ADDRESS_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, stack) == REGISTER_FILE_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, vm) == GLOBAL_DATA_OFFSET);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedGP) == PRESERVED_GP_OFFSET, preservedGP);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedS0) == PRESERVED_S0_OFFSET, preservedS0);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedS1) == PRESERVED_S1_OFFSET, preservedS1);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedS2) == PRESERVED_S2_OFFSET, preservedS2);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, preservedReturnAddress) == PRESERVED_RETURN_ADDRESS_OFFSET, preservedReturnAddress);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, thunkReturnAddress) == THUNK_RETURN_ADDRESS_OFFSET, thunkReturnAddress);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, stack) == REGISTER_FILE_OFFSET, stack);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, vm) == GLOBAL_DATA_OFFSET, vm);
 
 #elif CPU(SH4)
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, thunkReturnAddress) == THUNK_RETURN_ADDRESS_OFFSET);
-    ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, savedR8) == SAVED_R8_OFFSET);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, thunkReturnAddress) == THUNK_RETURN_ADDRESS_OFFSET, thunkReturnAddress);
+    COMPILE_ASSERT(OBJECT_OFFSETOF(struct JITStackFrame, savedR8) == SAVED_R8_OFFSET, savedR8);
 #endif
 }
 
@@ -1361,7 +1360,7 @@ RVCT()
 /* Include the generated file */
 #include "GeneratedJITStubs_RVCT.h"
 
-#elif CPU(ARM_TRADITIONAL) && COMPILER(MSVC)
+#elif (CPU(ARM_THUMB2) || CPU(ARM_TRADITIONAL)) && COMPILER(MSVC)
 
 #define DEFINE_STUB_FUNCTION(rtype, op) extern "C" rtype JITStubThunked_##op(STUB_ARGS_DECLARATION)
 
