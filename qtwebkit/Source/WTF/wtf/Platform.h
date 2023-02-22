@@ -28,6 +28,8 @@
 #ifndef WTF_Platform_h
 #define WTF_Platform_h
 
+#define ENABLE_JIT 1
+
 /* Include compiler specific macros */
 #include <wtf/Compiler.h>
 
