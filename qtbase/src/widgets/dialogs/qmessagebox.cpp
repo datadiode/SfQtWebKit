@@ -442,6 +442,7 @@ void QMessageBoxPrivate::updateSize()
 
 void QMessageBoxPrivate::hideSpecial()
 {
+#if 0 // Dummied out because some WinCE devices break with the above-stated rule
     Q_Q(QMessageBox);
     QList<QPushButton*> list = q->findChildren<QPushButton*>();
         for (int i=0; i<list.size(); ++i) {
@@ -451,6 +452,7 @@ void QMessageBoxPrivate::hideSpecial()
             if (text == QApplication::translate("QMessageBox", "OK" ))
                 pb->setFixedSize(0,0);
         }
+#endif
 }
 #endif
 
