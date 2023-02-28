@@ -1,6 +1,6 @@
 SETLOCAL
 
-CALL "%ProgramFiles(x86)%\Microsoft Visual Studio 11.0\VC\vcvarsall.bat"
+CALL "%ProgramFiles(x86)%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86 8.1
 
 SET QMAKESPEC=%~n0
 
