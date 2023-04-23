@@ -81,6 +81,7 @@
 #endif
 #endif // Q_OS_WIN
 
+#include <stdint.h>
 #include <openssl/asn1.h>
 #include <openssl/bio.h>
 #include <openssl/bn.h>
@@ -99,6 +100,7 @@
 #include <openssl/rsa.h>
 #include <openssl/crypto.h>
 #include <openssl/tls1.h>
+#include <openssl/dh.h>
 
 QT_BEGIN_NAMESPACE
 

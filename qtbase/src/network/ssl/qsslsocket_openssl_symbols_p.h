@@ -337,7 +337,7 @@ int q_BIO_meth_set_destroy(BIO_METHOD *biom, DgramDestroyCallback);
 
 void q_BIO_set_data(BIO *a, void *ptr);
 void *q_BIO_get_data(BIO *a);
-void q_BIO_set_init(BIO *a, int init);
+//void q_BIO_set_init(BIO *a, int init);
 int q_BIO_get_shutdown(BIO *a);
 void q_BIO_set_shutdown(BIO *a, int shut);
 
@@ -475,7 +475,7 @@ long q_SSL_CTX_ctrl(SSL_CTX *a, int b, long c, void *d);
 void q_SSL_CTX_free(SSL_CTX *a);
 SSL_CTX *q_SSL_CTX_new(const SSL_METHOD *a);
 int q_SSL_CTX_set_cipher_list(SSL_CTX *a, const char *b);
-int q_SSL_CTX_set_default_verify_paths(SSL_CTX *a);
+//int q_SSL_CTX_set_default_verify_paths(SSL_CTX *a);
 void q_SSL_CTX_set_verify(SSL_CTX *a, int b, int (*c)(int, X509_STORE_CTX *));
 void q_SSL_CTX_set_verify_depth(SSL_CTX *a, int b);
 extern "C" {
@@ -483,10 +483,10 @@ typedef void (*GenericCallbackType)();
 }
 long q_SSL_CTX_callback_ctrl(SSL_CTX *, int, GenericCallbackType);
 int q_SSL_CTX_use_certificate(SSL_CTX *a, X509 *b);
-int q_SSL_CTX_use_certificate_file(SSL_CTX *a, const char *b, int c);
+//int q_SSL_CTX_use_certificate_file(SSL_CTX *a, const char *b, int c);
 int q_SSL_CTX_use_PrivateKey(SSL_CTX *a, EVP_PKEY *b);
 int q_SSL_CTX_use_RSAPrivateKey(SSL_CTX *a, RSA *b);
-int q_SSL_CTX_use_PrivateKey_file(SSL_CTX *a, const char *b, int c);
+//int q_SSL_CTX_use_PrivateKey_file(SSL_CTX *a, const char *b, int c);
 X509_STORE *q_SSL_CTX_get_cert_store(const SSL_CTX *a);
 SSL_CONF_CTX *q_SSL_CONF_CTX_new();
 void q_SSL_CONF_CTX_free(SSL_CONF_CTX *a);
@@ -561,7 +561,7 @@ void q_X509_STORE_CTX_free(X509_STORE_CTX *storeCtx);
 int q_X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store,
                           X509 *x509, STACK_OF(X509) *chain);
 X509_STORE_CTX *q_X509_STORE_CTX_new();
-int q_X509_STORE_CTX_set_purpose(X509_STORE_CTX *ctx, int purpose);
+//int q_X509_STORE_CTX_set_purpose(X509_STORE_CTX *ctx, int purpose);
 int q_X509_STORE_CTX_get_error(X509_STORE_CTX *ctx);
 int q_X509_STORE_CTX_get_error_depth(X509_STORE_CTX *ctx);
 X509 *q_X509_STORE_CTX_get_current_cert(X509_STORE_CTX *ctx);
