@@ -14451,9 +14451,9 @@ int wc_ecc_get_oid(word32 oidSum, const byte** oid, word32* oidSz)
         if (ecc_sets[x].oidSum == oidSum) {
             int ret;
         #ifdef HAVE_OID_ENCODING
-            ret = 0;
             /* check cache */
             oid_cache_t* o = &ecc_oid_cache[x];
+            ret = 0;
             if (o->oidSz == 0) {
                 o->oidSz = sizeof(o->oid);
                 ret = EncodeObjectId(ecc_sets[x].oid, ecc_sets[x].oidSz,
