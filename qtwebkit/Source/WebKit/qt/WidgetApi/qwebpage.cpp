@@ -410,7 +410,7 @@ bool QWebPagePrivate::errorPageExtension(QWebPageAdapter::ErrorPageOption *opt, 
         option.domain = QWebPage::QtNetwork;
     else if (opt->domain == QLatin1String("HTTP"))
         option.domain = QWebPage::Http;
-    else if (opt->domain == QLatin1String("WebKit"))
+    else if (opt->domain == QLatin1String("WebKit") || opt->domain == QLatin1String("WebKitErrorDomain"))
         option.domain = QWebPage::WebKit;
     else
         return false;
@@ -3095,11 +3095,55 @@ bool QWebPage::extension(Extension extension, const ExtensionOption *option, Ext
     if (extension == ChooseMultipleFilesExtension) {
         // FIXME: do not ignore suggestedFiles
         QStringList suggestedFiles = static_cast<const ChooseMultipleFilesExtensionOption*>(option)->suggestedFileNames;
-        QStringList names = QFileDialog::getOpenFileNames(view(), QString::null);
+        QStringList names = QFileDialog::getOpenFileNames(view(), QString());
         static_cast<ChooseMultipleFilesExtensionReturn*>(output)->fileNames = names;
         return true;
     }
 #endif
+
+    if (extension == ErrorPageExtension) {
+        const ErrorPageExtensionOption* errorOption = static_cast<const ErrorPageExtensionOption*>(option);
+        ErrorPageExtensionReturn* pageOutput = static_cast<ErrorPageExtensionReturn*>(output);
+        QString errorCode;
+        QString pageHeader = errorOption->errorString;
+        const QString escapedUrl = errorOption->url.toDisplayString().toHtmlEscaped();
+
+        switch (errorOption->domain) {
+        case QWebPage::Http:
+            errorCode = tr("HTTP Error %0").arg(errorOption->error);
+            break;
+        case QWebPage::QtNetwork:
+            errorCode = tr("QtNetwork Error %0").arg(errorOption->error);
+            break;
+        case QWebPage::WebKit:
+            errorCode = tr("WebKit Error %0").arg(errorOption->error);
+            break;
+        }
+
+        if (pageHeader.isEmpty())
+            pageHeader = errorCode;
+        else if (pageHeader.endsWith(QLatin1Char('.')))
+            pageHeader.chop(1);
+
+        pageOutput->baseUrl = errorOption->url;
+        pageOutput->content = QString(QLatin1String("<html><head>"
+            "<meta charset=\"utf-8\">"
+            "<title>%0</title>"
+            "<style>"
+            "html{font-family:sans;background:#EEE;color:#000;}"
+            "body{max-width:600px;margin:150px auto 0;padding:10px;}"
+            "pre{text-align:right;color:#999;}"
+            "</style>"
+            "</head><body>"
+            "<h1>%0</h1><hr>"
+            "<p>%1</p><pre>%2</pre>"
+            "</body></html>")).arg(
+                pageHeader.toHtmlEscaped(),
+                tr("Failed to load URL %0.").toHtmlEscaped().arg(QLatin1String("<a href=\"") + escapedUrl + QLatin1String("\">") + escapedUrl + QLatin1String("</a>")),
+                errorCode.toHtmlEscaped()).toUtf8();
+
+        return true;
+    }
 
     return false;
 }
@@ -3112,11 +3156,10 @@ bool QWebPage::extension(Extension extension, const ExtensionOption *option, Ext
 bool QWebPage::supportsExtension(Extension extension) const
 {
 #ifndef QT_NO_FILEDIALOG
-    return extension == ChooseMultipleFilesExtension;
-#else
-    Q_UNUSED(extension);
-    return false;
+    if (extension == ChooseMultipleFilesExtension)
+        return true;
 #endif
+    return extension == ErrorPageExtension;
 }
 
 /*!
@@ -3169,9 +3212,9 @@ QString QWebPage::chooseFile(QWebFrame *parentFrame, const QString& suggestedFil
 {
     Q_UNUSED(parentFrame);
 #ifndef QT_NO_FILEDIALOG
-    return QFileDialog::getOpenFileName(view(), QString::null, suggestedFile);
+    return QFileDialog::getOpenFileName(view(), QString(), suggestedFile);
 #else
-    return QString::null;
+    return QString();
 #endif
 }
 
