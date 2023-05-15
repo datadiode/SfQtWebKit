@@ -3113,6 +3113,9 @@ bool QWebPage::extension(Extension extension, const ExtensionOption *option, Ext
             errorCode = tr("HTTP Error %0").arg(errorOption->error);
             break;
         case QWebPage::QtNetwork:
+            // Leave handling of SSL handshake errors to the application
+            if (errorOption->error == QNetworkReply::SslHandshakeFailedError)
+                return false;
             errorCode = tr("QtNetwork Error %0").arg(errorOption->error);
             break;
         case QWebPage::WebKit:
