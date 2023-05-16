@@ -988,7 +988,7 @@ void QWindowsWindow::destroyWindow()
             m_surface = 0;
         }
 #endif
-#ifdef Q_OS_WINCE
+#if 0//def Q_OS_WINCE
         if ((m_windowState & Qt::WindowFullScreen) && !m_previouslyHidden) {
             HWND handle = FindWindow(L"HHTaskBar", L"");
             if (handle) {
@@ -1655,7 +1655,7 @@ void QWindowsWindow::setWindowState_sys(Qt::WindowState newState)
     setFlag(FrameDirty);
 
     if ((oldState == Qt::WindowFullScreen) != (newState == Qt::WindowFullScreen)) {
-#ifdef Q_OS_WINCE
+#if 0//def Q_OS_WINCE
         HWND handle = FindWindow(L"HHTaskBar", L"");
         if (handle) {
             if (newState == Qt::WindowFullScreen) {
