@@ -47,6 +47,10 @@ PageAllocationAligned PageAllocationAligned::allocate(size_t size, size_t alignm
     vm_address_t address = 0;
     vm_map(current_task(), &address, size, alignmentMask, flags, MEMORY_OBJECT_NULL, 0, FALSE, protection, PROT_READ | PROT_WRITE, VM_INHERIT_DEFAULT);
     return PageAllocationAligned(reinterpret_cast<void*>(address), size);
+#elif OS(WINDOWS)
+    void* reservationBase = OSAllocator::reserveAndCommit(size, usage, writable, false);
+    RELEASE_ASSERT((reinterpret_cast<uintptr_t>(reservationBase) & alignmentMask) == 0);
+    return PageAllocationAligned(reservationBase, size, reservationBase, size);
 #else
     size_t alignmentDelta = alignment - pageSize();
 
