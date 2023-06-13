@@ -67,6 +67,7 @@ Cursor& Cursor::operator=(const Cursor& other)
     m_image = other.m_image;
     m_hotSpot = other.m_hotSpot;
 #ifndef QT_NO_CURSOR
+    delete m_platformCursor;
     m_platformCursor = other.m_platformCursor ? new QCursor(*other.m_platformCursor)  : 0;
 #endif
     return *this;
