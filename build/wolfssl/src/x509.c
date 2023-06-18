@@ -1276,6 +1276,9 @@ static int asn1_string_copy_to_buffer(WOLFSSL_ASN1_STRING* str, byte** buf,
 int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int loc)
 {
     int nid;
+    char *oid;
+    byte *val;
+    int err;
 
     WOLFSSL_ENTER("wolfSSL_X509_add_ext");
 
@@ -1384,11 +1387,9 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
         }
 
         /* This is a viable custom extension. */
-        char *oid = XMALLOC(MAX_OID_STRING_SZ, x509->heap,
-                            DYNAMIC_TYPE_X509_EXT);
-        byte *val = XMALLOC(ext->value.length, x509->heap,
-                            DYNAMIC_TYPE_X509_EXT);
-        int err = 0;
+        oid = XMALLOC(MAX_OID_STRING_SZ, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        val = XMALLOC(ext->value.length, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        err = 0;
 
         if ((oid == NULL) || (val == NULL)) {
             WOLFSSL_MSG("Memory allocation failure.\n");

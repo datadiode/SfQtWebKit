@@ -176,7 +176,7 @@ decouple library dependencies with standard string, memory and so on.
 
     #if defined(_MSC_VER) || defined(__BCPLUSPLUS__)
         #define WORD64_AVAILABLE
-        #define W64LIT(x) x##ui64
+        #define W64LIT(x) x##I64
         typedef          __int64 sword64;
         typedef unsigned __int64 word64;
     #elif defined(__EMSCRIPTEN__)
