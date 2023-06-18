@@ -142,6 +142,7 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
                                          DYNAMIC_TYPE_CRL_ENTRY);
         if (crle->signature == NULL) {
             XFREE(crle->toBeSigned, heap, DYNAMIC_TYPE_CRL_ENTRY);
+            crle->toBeSigned = NULL;
             return -1;
         }
         XMEMCPY(crle->toBeSigned, buff + dcrl->certBegin, crle->tbsSz);
@@ -529,14 +530,19 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
 
     if (InitCRL_Entry(crle, dcrl, buff, verified, crl->heap) < 0) {
         WOLFSSL_MSG("Init CRL Entry failed");
-        XFREE(crle, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+        FreeCRL_Entry(crle, crl->heap);
+        if (crle != crl->currentEntry) {
+            XFREE(crle, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+        }
         return -1;
     }
 
     if (wc_LockMutex(&crl->crlLock) != 0) {
         WOLFSSL_MSG("wc_LockMutex failed");
         FreeCRL_Entry(crle, crl->heap);
-        XFREE(crle, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+        if (crle != crl->currentEntry) {
+            XFREE(crle, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+        }
         return BAD_MUTEX_E;
     }
 
@@ -597,6 +603,10 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
                                         DYNAMIC_TYPE_CRL_ENTRY);
     if (crl->currentEntry == NULL) {
         WOLFSSL_MSG("alloc CRL Entry failed");
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(dcrl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        FreeDer(&der);
         return MEMORY_E;
     }
     XMEMSET(crl->currentEntry, 0, sizeof(CRL_Entry));
@@ -859,6 +869,9 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
 
     if (store->cm->crl == NULL) {
         crl = wolfSSL_X509_crl_new(store->cm);
+        if (crl == NULL) {
+            return WOLFSSL_FAILURE;
+        }
         if (DupX509_CRL(crl, newcrl) != 0) {
             if (crl != NULL)
                 FreeCRL(crl, 1);

@@ -112,7 +112,7 @@ enum Ecc_Sum {
     ECC_SECP384R1_OID = 210,
     ECC_BRAINPOOLP384R1_OID = 108,
     ECC_BRAINPOOLP512R1_OID = 110,
-    ECC_SECP521R1_OID = 211,
+    ECC_SECP521R1_OID = 211
 };
 
 
@@ -154,7 +154,7 @@ enum CertType {
     SPHINCS_SMALL_LEVEL1_TYPE,
     SPHINCS_SMALL_LEVEL3_TYPE,
     SPHINCS_SMALL_LEVEL5_TYPE,
-    ECC_PARAM_TYPE,
+    ECC_PARAM_TYPE
 };
 
 
@@ -202,7 +202,7 @@ enum Ctc_SigType {
     CTC_SPHINCS_FAST_LEVEL5  = 282,
     CTC_SPHINCS_SMALL_LEVEL1 = 287,
     CTC_SPHINCS_SMALL_LEVEL3 = 285,
-    CTC_SPHINCS_SMALL_LEVEL5 = 286,
+    CTC_SPHINCS_SMALL_LEVEL5 = 286
 };
 
 enum Ctc_Encoding {
@@ -243,6 +243,7 @@ enum Ctc_Misc {
                                                  * enough for at least two
                                                  * distribution points. */
 #endif /* WOLFSSL_CERT_EXT */
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(Ctc_Misc)
 };
 
 /* DER buffer */
@@ -270,7 +271,7 @@ enum {
 #endif
 
     PEM_PASS_READ  = 0,
-    PEM_PASS_WRITE = 1,
+    PEM_PASS_WRITE = 1
 };
 
 typedef int (wc_pem_password_cb)(char* passwd, int sz, int rw, void* userdata);
@@ -315,8 +316,8 @@ typedef struct WOLFSSL_ASN1_INTEGER {
     unsigned int   dataMax;   /* max size of data buffer */
     unsigned int   isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
 
-    int length;
-    int type;
+    int length;   /* Length of DER encoding. */
+    int type;     /* ASN.1 type. Includes negative flag. */
 } WOLFSSL_ASN1_INTEGER;
 
 
@@ -350,7 +351,6 @@ typedef struct NameAttrib {
 #endif /* WOLFSSL_MULTI_ATTRIB */
 #endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
-#ifdef WOLFSSL_CERT_GEN
 #ifdef WOLFSSL_CUSTOM_OID
 typedef struct CertOidField {
     byte*  oid;
@@ -361,13 +361,12 @@ typedef struct CertOidField {
 } CertOidField;
 
 typedef struct CertExtension {
-    const char* oid;
-    byte        crit;
-    const byte* val;
-    int         valSz;
+    char* oid;
+    byte  crit;
+    byte* val;
+    int   valSz;
 } CertExtension;
 #endif
-#endif /* WOLFSSL_CERT_GEN */
 
 #if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 typedef struct CertName {
@@ -421,11 +420,8 @@ typedef struct CertName {
 } CertName;
 #endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL*/
 
-#ifdef WOLFSSL_CERT_GEN
-
 #ifndef NUM_CUSTOM_EXT
 #define NUM_CUSTOM_EXT 16
-#endif
 
 /* for user to fill for certificate generation */
 typedef struct Cert {
@@ -433,10 +429,13 @@ typedef struct Cert {
     byte     serial[CTC_SERIAL_SIZE];   /* serial number */
     int      serialSz;                  /* serial size */
     int      sigType;                   /* signature algo type */
+#if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) \
+ || defined(OPENSSL_EXTRA_X509_SMALL)
     CertName issuer;                    /* issuer info */
+    CertName subject;                   /* subject info */
+#endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
     int      daysValid;                 /* validity days */
     int      selfSigned;                /* self signed flag */
-    CertName subject;                   /* subject info */
     int      isCA;                      /* is this going to be a CA */
     byte     pathLen;                   /* max depth of valid certification
                                          * paths that include this cert */
@@ -491,7 +490,7 @@ typedef struct Cert {
     char     challengePw[CTC_NAME_SIZE];
     char     unstructuredName[CTC_NAME_SIZE];
     int      challengePwPrintableString; /* encode as PrintableString */
-#endif
+#endif /* WOLFSSL_CERT_REQ */
 #ifdef WOLFSSL_CUSTOM_OID
     /* user oid and value to go in req extensions */
     CertOidField extCustom;
@@ -499,7 +498,7 @@ typedef struct Cert {
     /* Extensions to go into X.509 certificates */
     CertExtension customCertExt[NUM_CUSTOM_EXT];
     int customCertExtCount;
-#endif
+#endif /* WOLFSSL_CUSTOM_OID */
     void*   decodedCert;      /* internal DecodedCert allocated from heap */
     byte*   der;              /* Pointer to buffer of current DecodedCert cache */
     void*   heap;             /* heap hint */
@@ -689,10 +688,17 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
          (! ((HAVE_FIPS_VERSION == 5) && (HAVE_FIPS_VERSION_MINOR == 0)))))
     WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen);
     #endif
-    #endif
+    #endif /* !HAVE_USER_RSA */
     WOLFSSL_API int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header);
     WOLFSSL_API int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
         int with_header);
+
+    /* For FIPS v1/v2 and selftest rsa.h is replaced. */
+    #if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && \
+        (!defined(HAVE_FIPS_VERSION) || (FIPS_VERSION_LE(5,2))))
+    WOLFSSL_API int wc_RsaPrivateKeyValidate(const byte* input,
+        word32* inOutIdx, int* keySz, word32 inSz);
+    #endif
 #endif
 
 #ifndef NO_DSA
@@ -755,7 +761,8 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_IMPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
-     (defined(HAVE_PQC)))
+     (defined(HAVE_PQC) && (defined(HAVE_FALCON) || \
+                            defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS))))
     #define WC_ENABLE_ASYM_KEY_IMPORT
 #endif
 
@@ -907,5 +914,105 @@ WOLFSSL_API int wc_GetFASCNFromCert(struct DecodedCert* cert,
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
+
+#if !defined(XFPRINTF) || defined(NO_FILESYSTEM) || \
+    defined(NO_STDIO_FILESYSTEM) && defined(WOLFSSL_ASN_PRINT)
+#undef WOLFSSL_ASN_PRINT
+#endif
+
+#ifdef WOLFSSL_ASN_PRINT
+
+enum Asn1PrintOpt {
+    /* Offset into DER/BER data to start decoding from. */
+    ASN1_PRINT_OPT_OFFSET,
+    /* Length of DER/BER encoding to parse. */
+    ASN1_PRINT_OPT_LENGTH,
+    /* Number of spaces to indent for each change in depth. */
+    ASN1_PRINT_OPT_INDENT,
+    /* Draw branches instead of indenting. */
+    ASN1_PRINT_OPT_DRAW_BRANCH,
+    /* Show raw data of primitive types as octets. */
+    ASN1_PRINT_OPT_SHOW_DATA,
+    /* Show header data as octets. */
+    ASN1_PRINT_OPT_SHOW_HEADER_DATA,
+    /* Show the wolfSSL OID value for OBJECT_ID. */
+    ASN1_PRINT_OPT_SHOW_OID,
+    /* Don't show text representations of primitive types. */
+    ASN1_PRINT_OPT_SHOW_NO_TEXT,
+    /* Don't show dump text representations of primitive types. */
+    ASN1_PRINT_OPT_SHOW_NO_DUMP_TEXT,
+};
+
+/* ASN.1 print options. */
+typedef struct Asn1PrintOptions {
+    /* Offset into DER/BER encoding to start parsing from. */
+    word32 offset;
+    /* Length of DER/BER encoding to parse. */
+    word32 length;
+    /* Number of spaces to indent for each change in depth. */
+    word8 indent;
+    /* Draw branches instead of indenting. */
+    word8 draw_branch:1;
+    /* Show raw data of primitive types as octets. */
+    word8 show_data:1;
+    /* Show header data as octets. */
+    word8 show_header_data:1;
+    /* Show the wolfSSL OID value for OBJECT_ID. */
+    word8 show_oid:1;
+    /* Don't show text representations of primitive types. */
+    word8 show_no_text:1;
+    /* Don't show dump text representations of primitive types. */
+    word8 show_no_dump_text:1;
+} Asn1PrintOptions;
+
+/* ASN.1 item data. */
+typedef struct Asn1Item {
+    /* Tag of current item. */
+    unsigned char  tag;
+    /* Whether current item is constructed. */
+    unsigned char  cons;
+    /* Length of data in current ASN.1 item. */
+    word32         len;
+    /* Index into data of ASN.1 item data. */
+    word32         data_idx;
+} Asn1Item;
+
+/* Maximum supported depth of ASN.1 items. */
+#define ASN_MAX_DEPTH       16
+
+/* ASN.1 parsing state. */
+typedef struct Asn1 {
+    /* ASN.1 item data. */
+    Asn1Item         item;
+    /* Current depth of ASN.1 item. */
+    unsigned char    depth;
+    /* End indices of ASN.1 items at different depths. */
+    word32           end_idx[ASN_MAX_DEPTH];
+
+    /* Buffer to print. */
+    unsigned char*   data;
+    /* Maximum number of bytes to process. */
+    word32           max;
+    /* Starting offset of current ASN.1 item. */
+    word32           offset;
+    /* Current offset into ASN.1 data. */
+    word32           curr;
+    /* Next part of ASN.1 item expected. */
+    unsigned char    part;
+
+    /* File pointer to print to. */
+    XFILE            file;
+} Asn1;
+
+WOLFSSL_API int wc_Asn1PrintOptions_Init(Asn1PrintOptions* opts);
+WOLFSSL_API int wc_Asn1PrintOptions_Set(Asn1PrintOptions* opts,
+    enum Asn1PrintOpt opt, word32 val);
+
+WOLFSSL_API int wc_Asn1_Init(Asn1* asn1);
+WOLFSSL_API int wc_Asn1_SetFile(Asn1* asn1, XFILE file);
+WOLFSSL_API int wc_Asn1_PrintAll(Asn1* asn1, Asn1PrintOptions* opts,
+    unsigned char* data, word32 len);
+
+#endif /* WOLFSSL_ASN_PRINT */
 
 #endif /* WOLF_CRYPT_ASN_PUBLIC_H */

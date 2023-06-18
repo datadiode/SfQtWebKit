@@ -107,6 +107,10 @@ typedef struct wc_CryptoInfo {
                 const byte* pubKey;
                 word32      pubKeySz;
             } rsa_check;
+            struct {
+                const RsaKey* key;
+                int*          keySize;
+            } rsa_get_size;
         #endif
         #ifdef HAVE_ECC
             struct {
@@ -366,6 +370,11 @@ WOLFSSL_API int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb,
 WOLFSSL_API void wc_CryptoCb_UnRegisterDevice(int devId);
 WOLFSSL_API int wc_CryptoCb_DefaultDevID(void);
 
+#ifdef WOLF_CRYPTO_CB_FIND
+typedef int (*CryptoDevCallbackFind)(int devId, int algoType);
+WOLFSSL_API void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb);
+#endif
+
 #ifdef DEBUG_CRYPTOCB
 WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info);
 #endif
@@ -386,6 +395,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e,
 
 WOLFSSL_LOCAL int wc_CryptoCb_RsaCheckPrivKey(RsaKey* key, const byte* pubKey,
     word32 pubKeySz);
+WOLFSSL_LOCAL int wc_CryptoCb_RsaGetSize(const RsaKey* key, int* keySize);
 #endif /* !NO_RSA */
 
 #ifdef HAVE_ECC

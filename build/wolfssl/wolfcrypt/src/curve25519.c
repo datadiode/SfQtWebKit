@@ -83,8 +83,8 @@ static WC_INLINE int curve25519_priv_clamp_check(const byte* priv)
 static WC_INLINE void curve25519_copy_point(byte* out, const byte* point,
     int endian)
 {
-    int i;
     if (endian == EC25519_BIG_ENDIAN) {
+        int i;
         /* put shared secret key in Big Endian format */
         for (i = 0; i < CURVE25519_KEYSIZE; i++) {
             out[i] = point[CURVE25519_KEYSIZE - i -1];
@@ -200,7 +200,7 @@ int wc_curve25519_make_priv(WC_RNG* rng, int keysize, byte* key)
         return ECC_BAD_ARG_E;
 
     /* random number for private key */
-    ret = wc_RNG_GenerateBlock(rng, key, keysize);
+    ret = wc_RNG_GenerateBlock(rng, key, (word32)keysize);
     if (ret == 0) {
         /* Clamp the private key */
         ret = curve25519_priv_clamp(key);

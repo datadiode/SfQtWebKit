@@ -96,9 +96,16 @@ extern "C" {
     #error "Size of unsigned int not detected"
 #endif
 
-#if !defined(NO_64BIT) && ULONG_MAX == 18446744073709551615ULL && \
+#if defined(WOLF_C89) && !defined(NO_64BIT) && \
+        ULONG_MAX == 18446744073709551615UL
+    #define SP_ULONG_BITS    64
+
+    typedef unsigned long sp_uint64;
+    typedef          long  sp_int64;
+#elif !defined(WOLF_C89) && !defined(NO_64BIT) && \
+        ULONG_MAX == 18446744073709551615ULL && \
         4294967295UL != 18446744073709551615ULL /* verify pre-processor supports
-                                                * 64-bit ULL types */
+                                                 * 64-bit ULL types */
     #define SP_ULONG_BITS    64
 
     typedef unsigned long sp_uint64;
@@ -122,7 +129,14 @@ extern "C" {
 #endif
 
 #ifdef ULLONG_MAX
-    #if ULLONG_MAX == 18446744073709551615ULL
+    #if defined(WOLF_C89) && ULLONG_MAX == 18446744073709551615UL
+        #define SP_ULLONG_BITS    64
+
+        #if SP_ULLONG_BITS > SP_ULONG_BITS
+            typedef unsigned long long sp_uint64;
+            typedef          long long  sp_int64;
+        #endif
+    #elif !defined(WOLF_C89) && ULLONG_MAX == 18446744073709551615ULL
         #define SP_ULLONG_BITS    64
 
         #if SP_ULLONG_BITS > SP_ULONG_BITS
@@ -220,7 +234,7 @@ extern "C" {
 #ifndef SP_WORD_SIZE
     #ifdef NO_64BIT
         #define SP_WORD_SIZE 16
-    #elif !defined(HAVE___UINT128_T)
+    #elif !defined(HAVE___UINT128_T) || defined(_WIN32)
         #define SP_WORD_SIZE 32
     #else
         #define SP_WORD_SIZE 64
@@ -658,6 +672,9 @@ typedef struct sp_ecc_ctx {
 #define sp_setneg(a)     ((a)->sign = MP_NEG)
 #endif
 
+/* Number of bits used based on used field only. */
+#define sp_bitsused(a)   ((a)->used * SP_WORD_SIZE)
+
 /* Updates the used count to exclude leading zeros.
  *
  * Assumes a is not NULL.
@@ -667,9 +684,9 @@ typedef struct sp_ecc_ctx {
 #define sp_clamp(a)                                               \
     do {                                                          \
         int ii;                                                   \
-        for (ii = (a)->used - 1; ii >= 0 && (a)->dp[ii] == 0; ii--) { \
+        for (ii = (int)(a)->used - 1; ii >= 0 && (a)->dp[ii] == 0; ii--) { \
         }                                                         \
-        (a)->used = ii + 1;                                       \
+        (a)->used = (unsigned int)ii + 1;                         \
     } while (0)
 
 /* Check the compiled and linked math implementation are the same.
@@ -680,16 +697,6 @@ typedef struct sp_ecc_ctx {
  */
 #define CheckFastMathSettings()   (SP_WORD_SIZE == CheckRunTimeFastMath())
 
-
-/* The number of bytes to a sp_int with 'cnt' digits.
- * Must have at least one digit.
- */
-#define MP_INT_SIZEOF(cnt) \
-    (sizeof(sp_int) - (SP_INT_DIGITS - (((cnt) == 0) ? 1 : (cnt))) * \
-     sizeof(sp_int_digit))
-/* The address of the next sp_int after one with 'cnt' digits. */
-#define MP_INT_NEXT(t, cnt) \
-        (sp_int*)(((byte*)(t)) + MP_INT_SIZEOF(cnt))
 
 /**
  * A result of NO.
@@ -746,6 +753,91 @@ typedef struct sp_ecc_ctx {
 #define DIGIT_BIT  SP_WORD_SIZE
 /* Mask of all used bits in word/digit. */
 #define MP_MASK    SP_MASK
+
+#ifdef MP_LOW_MEM
+/* Use algorithms that use less memory. */
+#define WOLFSSL_SP_LOW_MEM
+#endif
+
+
+/* The number of bytes to a sp_int with 'cnt' digits.
+ * Must have at least one digit.
+ */
+#define MP_INT_SIZEOF(cnt)                                              \
+    (sizeof(sp_int_minimal) + (((cnt) <= 1) ? 0 : ((cnt) - 1)) *        \
+     sizeof(sp_int_digit))
+/* The address of the next sp_int after one with 'cnt' digits. */
+#define MP_INT_NEXT(t, cnt) \
+    (sp_int*)(((byte*)(t)) + MP_INT_SIZEOF(cnt))
+
+
+/* Calculate the number of words required to support a number of bits. */
+#define MP_BITS_CNT(bits)                                       \
+        ((((bits) + SP_WORD_SIZE - 1) / SP_WORD_SIZE) * 2 + 1)
+
+#ifdef WOLFSSL_SMALL_STACK
+/*
+ * Dynamic memory allocation of mp_int.
+ */
+/* Declare a dynamically allocated mp_int. */
+#define DECL_MP_INT_SIZE_DYN(name, bits, max)                               \
+    sp_int* name = NULL
+/* Declare a dynamically allocated mp_int. */
+#define DECL_MP_INT_SIZE(name, bits)                                        \
+    sp_int* name = NULL
+/* Allocate an mp_int of minimal size and zero out. */
+#define NEW_MP_INT_SIZE(name, bits, heap, type)                              \
+do {                                                                         \
+    (name) = (mp_int*)XMALLOC(MP_INT_SIZEOF(MP_BITS_CNT(bits)), heap, type); \
+    if ((name) != NULL) {                                                    \
+        XMEMSET(name, 0, MP_INT_SIZEOF(MP_BITS_CNT(bits)));                  \
+    }                                                                        \
+}                                                                            \
+while (0)
+/* Dispose of dynamically allocated mp_int. */
+#define FREE_MP_INT_SIZE(name, heap, type) \
+    XFREE(name, heap, type)
+/* Type to cast to when using size marcos. */
+#define MP_INT_SIZE     sp_int
+/* Must check mp_int pointer for NULL. */
+#define MP_INT_SIZE_CHECK_NULL
+#else
+/*
+ * Static allocation of mp_int.
+ */
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+    !defined(WOLFSSL_SP_NO_DYN_STACK)
+/* Declare a dynamically allocated mp_int. */
+#define DECL_MP_INT_SIZE_DYN(name, bits, max)                   \
+    unsigned char name##d[MP_INT_SIZEOF(MP_BITS_CNT(bits))];    \
+    sp_int* (name) = (sp_int*)name##d
+#elif defined(__cplusplus)
+/* C++ doesn't tolerate parentheses around "name" (-Wparentheses) */
+#define DECL_MP_INT_SIZE_DYN(name, bits, max)                   \
+    unsigned char name##d[MP_INT_SIZEOF(MP_BITS_CNT(max))];     \
+    sp_int* name = (sp_int*)name##d
+#else
+/* Declare a dynamically allocated mp_int. */
+#define DECL_MP_INT_SIZE_DYN(name, bits, max)                   \
+    unsigned char name##d[MP_INT_SIZEOF(MP_BITS_CNT(max))];     \
+    sp_int* (name) = (sp_int*)name##d
+#endif
+/* Declare a statically allocated mp_int. */
+#define DECL_MP_INT_SIZE(name, bits)                            \
+    unsigned char name##d[MP_INT_SIZEOF(MP_BITS_CNT(bits))];    \
+    sp_int* (name) = (sp_int*)name##d
+/* Zero out mp_int of minimal size. */
+#define NEW_MP_INT_SIZE(name, bits, heap, type) \
+    XMEMSET(name, 0, MP_INT_SIZEOF(MP_BITS_CNT(bits)))
+/* Dispose of static mp_int. */
+#define FREE_MP_INT_SIZE(name, heap, type)
+/* Type to force compiler to not complain about size. */
+#define MP_INT_SIZE     sp_int_minimal
+#endif
+
+/* Initialize an mp_int to a specific size. */
+#define INIT_MP_INT_SIZE(name, bits) \
+    mp_init_size(name, MP_BITS_CNT(bits))
 
 
 #ifdef HAVE_WOLF_BIGINT
@@ -818,7 +910,7 @@ typedef sp_int_digit mp_digit;
  */
 
 MP_API int sp_init(sp_int* a);
-MP_API int sp_init_size(sp_int* a, int size);
+MP_API int sp_init_size(sp_int* a, unsigned int size);
 MP_API int sp_init_multi(sp_int* n1, sp_int* n2, sp_int* n3, sp_int* n4,
                          sp_int* n5, sp_int* n6);
 MP_API void sp_free(sp_int* a);
@@ -992,6 +1084,7 @@ WOLFSSL_LOCAL void sp_memzero_check(sp_int* sp);
 #define mp_abs                              sp_abs
 #define mp_isneg                            sp_isneg
 #define mp_setneg                           sp_setneg
+#define mp_bitsused                         sp_bitsused
 #define mp_clamp                            sp_clamp
 
 /* One to one mappings. */

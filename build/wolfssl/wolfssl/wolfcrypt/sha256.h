@@ -153,7 +153,8 @@ enum {
 #elif defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
     #include "wolfssl/wolfcrypt/port/Renesas/renesas_tsip_types.h"
-#elif defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+#elif (defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+        defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)) && \
    !defined(NO_WOLFSSL_RENESAS_SCEPROTECT_HASH)
     #include "wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h"
 #elif defined(WOLFSSL_RENESAS_RX64_HASH)
@@ -254,7 +255,7 @@ WOLFSSL_API int wc_Sha256Update(wc_Sha256* sha, const byte* data, word32 len);
 WOLFSSL_API int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash);
 WOLFSSL_API int wc_Sha256Final(wc_Sha256* sha256, byte* hash);
 WOLFSSL_API void wc_Sha256Free(wc_Sha256* sha256);
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 WOLFSSL_API int wc_Sha256Transform(wc_Sha256* sha, const unsigned char* data);
 #endif
 #if defined(WOLFSSL_HASH_KEEP)

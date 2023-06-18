@@ -920,7 +920,6 @@
 
     int wc_Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
-        int i;
         int offset = 0;
         int len = sz;
         int ret = 0;
@@ -941,8 +940,7 @@
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
 
             /* XOR block with IV for CBC */
-            for (i = 0; i < DES_BLOCK_SIZE; i++)
-                temp_block[i] ^= iv[i];
+            xorbuf(temp_block, iv, DES_BLOCK_SIZE);
 
             ret = wolfSSL_CryptHwMutexLock();
             if(ret != 0) {
@@ -967,7 +965,6 @@
 
     int wc_Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
-        int i;
         int offset = 0;
         int len = sz;
         int ret = 0;
@@ -1000,8 +997,7 @@
             wolfSSL_CryptHwMutexUnLock();
 
             /* XOR block with IV for CBC */
-            for (i = 0; i < DES_BLOCK_SIZE; i++)
-                (out + offset)[i] ^= iv[i];
+            xorbuf(out + offset, iv, DES_BLOCK_SIZE);
 
             /* store IV for next block */
             XMEMCPY(iv, temp_block, DES_BLOCK_SIZE);
@@ -1015,7 +1011,6 @@
 
     int wc_Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
-        int i;
         int offset = 0;
         int len = sz;
         int ret = 0;
@@ -1037,8 +1032,7 @@
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
 
             /* XOR block with IV for CBC */
-            for (i = 0; i < DES_BLOCK_SIZE; i++)
-                temp_block[i] ^= iv[i];
+            xorbuf(temp_block, iv, DES_BLOCK_SIZE);
 
             ret = wolfSSL_CryptHwMutexLock();
             if(ret != 0) {
@@ -1067,7 +1061,6 @@
 
     int wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
-        int i;
         int offset = 0;
         int len = sz;
         int ret = 0;
@@ -1104,8 +1097,7 @@
             wolfSSL_CryptHwMutexUnLock();
 
             /* XOR block with IV for CBC */
-            for (i = 0; i < DES_BLOCK_SIZE; i++)
-                (out + offset)[i] ^= iv[i];
+            xorbuf(out + offset, iv, DES_BLOCK_SIZE);
 
             /* store IV for next block */
             XMEMCPY(iv, temp_block, DES_BLOCK_SIZE);
@@ -1486,7 +1478,7 @@
                 for (j = 0; j < 48; j++) {        /* select bits individually     */
                     if (pcr[pc2[j] - 1]) {        /* check bit that goes to ks[j] */
                         l= j % 6;                 /* mask it in if it's there     */
-                        ks[j/6] |= bytebit[l] >> 2;
+                        ks[j/6] |= (byte)(bytebit[l] >> 2);
                     }
                 }
 

@@ -1429,8 +1429,10 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
     switch (bio->type) {
         #ifndef NO_FILESYSTEM
         case WOLFSSL_BIO_FILE:
-            XREWIND((XFILE)bio->ptr);
-            return 0;
+            if (XFSEEK((XFILE)bio->ptr, 0, XSEEK_SET) != 0)
+                return WOLFSSL_BIO_ERROR;
+            else
+                return 0;
         #endif
 
         case WOLFSSL_BIO_BIO:
@@ -1788,9 +1790,7 @@ WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char *name)
 void wolfSSL_BIO_meth_free(WOLFSSL_BIO_METHOD *biom)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_meth_free");
-    if (biom) {
-        XFREE(biom, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
+    XFREE(biom, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
 
@@ -2057,11 +2057,10 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
     WOLFSSL_BIO *wolfSSL_BIO_new_connect(const char *str)
     {
         WOLFSSL_BIO *bio;
-        const char* port;
         WOLFSSL_ENTER("wolfSSL_BIO_new_connect");
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
         if (bio) {
-            port = XSTRSTR(str, ":");
+            const char* port = XSTRSTR(str, ":");
 
             if (port != NULL)
                 bio->port = (word16)XATOI(port + 1);
@@ -2261,8 +2260,6 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     void wolfSSL_BIO_ssl_shutdown(WOLFSSL_BIO* b)
     {
-        int rc;
-
         WOLFSSL_ENTER("wolfSSL_BIO_ssl_shutdown");
 
         if (b == NULL) {
@@ -2279,7 +2276,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         }
 
         if (b->ptr != NULL) {
-            rc = wolfSSL_shutdown((WOLFSSL*)b->ptr);
+            int rc = wolfSSL_shutdown((WOLFSSL*)b->ptr);
             if (rc == SSL_SHUTDOWN_NOT_DONE) {
                 /* In this case, call again to give us a chance to read the
                  * close notify alert from the other end. */
@@ -2378,6 +2375,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         if (err == 1) {
             wolfSSL_free(ssl);
             wolfSSL_BIO_free(sslBio);
+            sslBio = NULL;
             wolfSSL_BIO_free(connBio);
         }
 
@@ -2386,7 +2384,6 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     long wolfSSL_BIO_set_conn_hostname(WOLFSSL_BIO* b, char* name)
     {
-        size_t currLen = 0;
         size_t newLen = 0;
 
         WOLFSSL_ENTER("wolfSSL_BIO_set_conn_hostname");
@@ -2414,7 +2411,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             }
         }
         else {
-            currLen = XSTRLEN(b->ip);
+            size_t currLen = XSTRLEN(b->ip);
             if (currLen != newLen) {
                 b->ip = (char*)XREALLOC(b->ip, newLen + 1, b->heap,
                     DYNAMIC_TYPE_OPENSSL);
@@ -2483,6 +2480,23 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             bio->shutdown = BIO_CLOSE; /* default to close things */
             bio->num = WOLFSSL_BIO_ERROR;
             bio->init = 1;
+
+        #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+            {
+                int ret;
+                wolfSSL_RefInit(&bio->ref, &ret);
+            #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+                if (ret != 0) {
+                    wolfSSL_BIO_free(bio);
+                    WOLFSSL_MSG("wc_InitMutex failed for WOLFSSL_BIO");
+                    return NULL;
+                }
+            #else
+                (void)ret;
+            #endif
+            }
+        #endif
+
             if (method->type == WOLFSSL_BIO_MEMORY)
                 bio->eof = WOLFSSL_BIO_ERROR; /* Return value for empty buffer */
             if (method->type == WOLFSSL_BIO_MEMORY ||
@@ -2508,22 +2522,6 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             if (method->createCb) {
                 method->createCb(bio);
             }
-
-        #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
-            {
-                int ret;
-                wolfSSL_RefInit(&bio->ref, &ret);
-            #ifdef WOLFSSL_REFCNT_ERROR_RETURN
-                if (ret != 0) {
-                    wolfSSL_BIO_free(bio);
-                    WOLFSSL_MSG("wc_InitMutex failed for WOLFSSL_BIO");
-                    return NULL;
-                }
-            #else
-                (void)ret;
-            #endif
-            }
-        #endif
 
         }
         return bio;
@@ -2696,8 +2694,13 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
     WOLFSSL_BIO* wolfSSL_BIO_push(WOLFSSL_BIO* top, WOLFSSL_BIO* append)
     {
         WOLFSSL_ENTER("wolfSSL_BIO_push");
-        top->next    = append;
-        append->prev = top;
+        if (top == NULL) {
+            return append;
+        }
+        top->next = append;
+        if (append != NULL) {
+            append->prev = top;
+        }
 
         /* SSL BIO's should use the next object in the chain for IO */
         if (top->type == WOLFSSL_BIO_SSL && top->ptr)

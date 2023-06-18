@@ -709,14 +709,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         #define AESNI_ALIGN 16
     #endif
 
-    #ifdef _MSC_VER
-        #define XASM_LINK(f)
-    #elif defined(__APPLE__)
-        #define XASM_LINK(f) asm("_" f)
-    #else
-        #define XASM_LINK(f) asm(f)
-    #endif /* _MSC_VER */
-
     static int checkAESNI = 0;
     static int haveAESNI  = 0;
     static word32 intel_flags = 0;
@@ -809,7 +801,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         static WARN_UNUSED_RESULT int AES_set_decrypt_key(
             const unsigned char* userKey, const int bits, Aes* aes)
         {
-            int nr;
+            word32 nr;
 #ifdef WOLFSSL_SMALL_STACK
             Aes *temp_key;
 #else
@@ -1725,12 +1717,17 @@ static WARN_UNUSED_RESULT word32 inv_col_mul(
     #endif
 #endif
 
-
 #ifndef WC_NO_CACHE_RESISTANT
+
+#if defined(__riscv) && !defined(WOLFSSL_AES_TOUCH_LINES)
+    #define WOLFSSL_AES_TOUCH_LINES
+#endif
+
 #ifndef WOLFSSL_AES_SMALL_TABLES
 /* load 4 Te Tables into cache by cache line stride */
 static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTe(void)
 {
+#ifndef WOLFSSL_AES_TOUCH_LINES
     word32 x = 0;
     int i,j;
 
@@ -1741,11 +1738,15 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTe(void)
         }
     }
     return x;
+#else
+    return 0;
+#endif
 }
 #else
 /* load sbox into cache by cache line stride */
 static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchSBox(void)
 {
+#ifndef WOLFSSL_AES_TOUCH_LINES
     word32 x = 0;
     int i;
 
@@ -1753,8 +1754,228 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchSBox(void)
         x &= Tsbox[i];
     }
     return x;
+#else
+    return 0;
+#endif
 }
 #endif
+#endif
+
+#ifdef WOLFSSL_AES_TOUCH_LINES
+#if WC_CACHE_LINE_SZ == 128
+    #define WC_CACHE_LINE_BITS 5
+    #define WC_CACHE_LINE_MASK_HI 0xe0
+    #define WC_CACHE_LINE_MASK_LO 0x1f
+    #define WC_CACHE_LINE_ADD     0x20
+#elif WC_CACHE_LINE_SZ == 64
+    #define WC_CACHE_LINE_BITS 4
+    #define WC_CACHE_LINE_MASK_HI 0xf0
+    #define WC_CACHE_LINE_MASK_LO 0x0f
+    #define WC_CACHE_LINE_ADD     0x10
+#elif WC_CACHE_LINE_SZ == 32
+    #define WC_CACHE_LINE_BITS 3
+    #define WC_CACHE_LINE_MASK_HI 0xf8
+    #define WC_CACHE_LINE_MASK_LO 0x07
+    #define WC_CACHE_LINE_ADD     0x08
+#elif WC_CACHE_LINE_SZ = 16
+    #define WC_CACHE_LINE_BITS 2
+    #define WC_CACHE_LINE_MASK_HI 0xfc
+    #define WC_CACHE_LINE_MASK_LO 0x03
+    #define WC_CACHE_LINE_ADD     0x04
+#else
+    #error Cache line size not supported
+#endif
+
+#ifndef WOLFSSL_AES_SMALL_TABLES
+static word32 GetTable(const word32* t, byte o)
+{
+#if WC_CACHE_LINE_SZ == 64
+    word32 e;
+    byte hi = o & 0xf0;
+    byte lo = o & 0x0f;
+
+    e  = t[lo + 0x00] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x10] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x20] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x30] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x40] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x50] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x60] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x70] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x80] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x90] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xa0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xb0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xc0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xd0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xe0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xf0] & ((word32)0 - (((word32)hi - 0x01) >> 31));
+
+    return e;
+#else
+    word32 e = 0;
+    int i;
+    byte hi = o & WC_CACHE_LINE_MASK_HI;
+    byte lo = o & WC_CACHE_LINE_MASK_LO;
+
+    for (i = 0; i < 256; i += (1 << WC_CACHE_LINE_BITS)) {
+        e |= t[lo + i] & ((word32)0 - (((word32)hi - 0x01) >> 31));
+        hi -= WC_CACHE_LINE_ADD;
+    }
+
+    return e;
+#endif
+}
+#endif
+
+#ifdef WOLFSSL_AES_SMALL_TABLES
+static byte GetTable8(const byte* t, byte o)
+{
+#if WC_CACHE_LINE_SZ == 64
+    byte e;
+    byte hi = o & 0xf0;
+    byte lo = o & 0x0f;
+
+    e  = t[lo + 0x00] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x10] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x20] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x30] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x40] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x50] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x60] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x70] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x80] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x90] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xa0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xb0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xc0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xd0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xe0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xf0] & ((word32)0 - (((word32)hi - 0x01) >> 31));
+
+    return e;
+#else
+    byte e = 0;
+    int i;
+    byte hi = o & WC_CACHE_LINE_MASK_HI;
+    byte lo = o & WC_CACHE_LINE_MASK_LO;
+
+    for (i = 0; i < 256; i += (1 << WC_CACHE_LINE_BITS)) {
+        e |= t[lo + i] & ((word32)0 - (((word32)hi - 0x01) >> 31));
+        hi -= WC_CACHE_LINE_ADD;
+    }
+
+    return e;
+#endif
+}
+#endif
+
+#ifndef WOLFSSL_AES_SMALL_TABLES
+static void GetTable_Multi(const word32* t, word32* t0, byte o0,
+    word32* t1, byte o1, word32* t2, byte o2, word32* t3, byte o3)
+{
+    word32 e0 = 0;
+    word32 e1 = 0;
+    word32 e2 = 0;
+    word32 e3 = 0;
+    byte hi0 = o0 & WC_CACHE_LINE_MASK_HI;
+    byte lo0 = o0 & WC_CACHE_LINE_MASK_LO;
+    byte hi1 = o1 & WC_CACHE_LINE_MASK_HI;
+    byte lo1 = o1 & WC_CACHE_LINE_MASK_LO;
+    byte hi2 = o2 & WC_CACHE_LINE_MASK_HI;
+    byte lo2 = o2 & WC_CACHE_LINE_MASK_LO;
+    byte hi3 = o3 & WC_CACHE_LINE_MASK_HI;
+    byte lo3 = o3 & WC_CACHE_LINE_MASK_LO;
+    int i;
+
+    for (i = 0; i < 256; i += (1 << WC_CACHE_LINE_BITS)) {
+        e0 |= t[lo0 + i] & ((word32)0 - (((word32)hi0 - 0x01) >> 31));
+        hi0 -= WC_CACHE_LINE_ADD;
+        e1 |= t[lo1 + i] & ((word32)0 - (((word32)hi1 - 0x01) >> 31));
+        hi1 -= WC_CACHE_LINE_ADD;
+        e2 |= t[lo2 + i] & ((word32)0 - (((word32)hi2 - 0x01) >> 31));
+        hi2 -= WC_CACHE_LINE_ADD;
+        e3 |= t[lo3 + i] & ((word32)0 - (((word32)hi3 - 0x01) >> 31));
+        hi3 -= WC_CACHE_LINE_ADD;
+    }
+    *t0 = e0;
+    *t1 = e1;
+    *t2 = e2;
+    *t3 = e3;
+}
+static void XorTable_Multi(const word32* t, word32* t0, byte o0,
+    word32* t1, byte o1, word32* t2, byte o2, word32* t3, byte o3)
+{
+    word32 e0 = 0;
+    word32 e1 = 0;
+    word32 e2 = 0;
+    word32 e3 = 0;
+    byte hi0 = o0 & 0xf0;
+    byte lo0 = o0 & 0x0f;
+    byte hi1 = o1 & 0xf0;
+    byte lo1 = o1 & 0x0f;
+    byte hi2 = o2 & 0xf0;
+    byte lo2 = o2 & 0x0f;
+    byte hi3 = o3 & 0xf0;
+    byte lo3 = o3 & 0x0f;
+    int i;
+
+    for (i = 0; i < 256; i += (1 << WC_CACHE_LINE_BITS)) {
+        e0 |= t[lo0 + i] & ((word32)0 - (((word32)hi0 - 0x01) >> 31));
+        hi0 -= WC_CACHE_LINE_ADD;
+        e1 |= t[lo1 + i] & ((word32)0 - (((word32)hi1 - 0x01) >> 31));
+        hi1 -= WC_CACHE_LINE_ADD;
+        e2 |= t[lo2 + i] & ((word32)0 - (((word32)hi2 - 0x01) >> 31));
+        hi2 -= WC_CACHE_LINE_ADD;
+        e3 |= t[lo3 + i] & ((word32)0 - (((word32)hi3 - 0x01) >> 31));
+        hi3 -= WC_CACHE_LINE_ADD;
+    }
+    *t0 ^= e0;
+    *t1 ^= e1;
+    *t2 ^= e2;
+    *t3 ^= e3;
+}
+static word32 GetTable8_4(const byte* t, byte o0, byte o1, byte o2, byte o3)
+{
+    word32 e = 0;
+    int i;
+    byte hi0 = o0 & WC_CACHE_LINE_MASK_HI;
+    byte lo0 = o0 & WC_CACHE_LINE_MASK_LO;
+    byte hi1 = o1 & WC_CACHE_LINE_MASK_HI;
+    byte lo1 = o1 & WC_CACHE_LINE_MASK_LO;
+    byte hi2 = o2 & WC_CACHE_LINE_MASK_HI;
+    byte lo2 = o2 & WC_CACHE_LINE_MASK_LO;
+    byte hi3 = o3 & WC_CACHE_LINE_MASK_HI;
+    byte lo3 = o3 & WC_CACHE_LINE_MASK_LO;
+
+    for (i = 0; i < 256; i += (1 << WC_CACHE_LINE_BITS)) {
+        e |= (word32)(t[lo0 + i] & ((word32)0 - (((word32)hi0 - 0x01) >> 31)))
+             << 24;
+        hi0 -= WC_CACHE_LINE_ADD;
+        e |= (word32)(t[lo1 + i] & ((word32)0 - (((word32)hi1 - 0x01) >> 31)))
+             << 16;
+        hi1 -= WC_CACHE_LINE_ADD;
+        e |= (word32)(t[lo2 + i] & ((word32)0 - (((word32)hi2 - 0x01) >> 31)))
+             <<  8;
+        hi2 -= WC_CACHE_LINE_ADD;
+        e |= (word32)(t[lo3 + i] & ((word32)0 - (((word32)hi3 - 0x01) >> 31)))
+             <<  0;
+        hi3 -= WC_CACHE_LINE_ADD;
+    }
+
+    return e;
+}
+#endif
+#else
+#define GetTable(t, o)  t[o]
+#define GetTable8(t, o) t[o]
+#define GetTable_Multi(t, t0, o0, t1, o1, t2, o2, t3, o3)  \
+    *(t0) = (t)[o0]; *(t1) = (t)[o1]; *(t2) = (t)[o2]; *(t3) = (t)[o3]
+#define XorTable_Multi(t, t0, o0, t1, o1, t2, o2, t3, o3)  \
+    *(t0) ^= (t)[o0]; *(t1) ^= (t)[o1]; *(t2) ^= (t)[o2]; *(t3) ^= (t)[o3]
+#define GetTable8_4(t, o0, o1, o2, o3) \
+    (((word32)(t)[o0] << 24) | ((word32)(t)[o1] << 16) |   \
+     ((word32)(t)[o2] <<  8) | ((word32)(t)[o3] <<  0))
 #endif
 
 /* Software AES - ECB Encrypt */
@@ -1795,7 +2016,7 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
 
             XMEMCPY(tmp_align, inBlock, AES_BLOCK_SIZE);
             AES_ECB_encrypt(tmp_align, tmp_align, AES_BLOCK_SIZE,
-                    (byte*)aes->key, aes->rounds);
+                    (byte*)aes->key, (int)aes->rounds);
             XMEMCPY(outBlock, tmp_align, AES_BLOCK_SIZE);
             XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return 0;
@@ -1807,7 +2028,7 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
         }
 
         AES_ECB_encrypt(inBlock, outBlock, AES_BLOCK_SIZE, (byte*)aes->key,
-                        aes->rounds);
+                        (int)aes->rounds);
 
         return 0;
     }
@@ -1863,27 +2084,59 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
     s0 |= PreFetchTe();
 #endif
 
+#ifndef WOLFSSL_AES_TOUCH_LINES
+#define ENC_ROUND_T_S(o)                                                       \
+    t0 = GetTable(Te[0], GETBYTE(s0, 3)) ^ GetTable(Te[1], GETBYTE(s1, 2)) ^   \
+         GetTable(Te[2], GETBYTE(s2, 1)) ^ GetTable(Te[3], GETBYTE(s3, 0)) ^   \
+         rk[(o)+4];                                                            \
+    t1 = GetTable(Te[0], GETBYTE(s1, 3)) ^ GetTable(Te[1], GETBYTE(s2, 2)) ^   \
+         GetTable(Te[2], GETBYTE(s3, 1)) ^ GetTable(Te[3], GETBYTE(s0, 0)) ^   \
+         rk[(o)+5];                                                            \
+    t2 = GetTable(Te[0], GETBYTE(s2, 3)) ^ GetTable(Te[1], GETBYTE(s3, 2)) ^   \
+         GetTable(Te[2], GETBYTE(s0, 1)) ^ GetTable(Te[3], GETBYTE(s1, 0)) ^   \
+         rk[(o)+6];                                                            \
+    t3 = GetTable(Te[0], GETBYTE(s3, 3)) ^ GetTable(Te[1], GETBYTE(s0, 2)) ^   \
+         GetTable(Te[2], GETBYTE(s1, 1)) ^ GetTable(Te[3], GETBYTE(s2, 0)) ^   \
+         rk[(o)+7]
+#define ENC_ROUND_S_T(o)                                                       \
+    s0 = GetTable(Te[0], GETBYTE(t0, 3)) ^ GetTable(Te[1], GETBYTE(t1, 2)) ^   \
+         GetTable(Te[2], GETBYTE(t2, 1)) ^ GetTable(Te[3], GETBYTE(t3, 0)) ^   \
+         rk[(o)+0];                                                            \
+    s1 = GetTable(Te[0], GETBYTE(t1, 3)) ^ GetTable(Te[1], GETBYTE(t2, 2)) ^   \
+         GetTable(Te[2], GETBYTE(t3, 1)) ^ GetTable(Te[3], GETBYTE(t0, 0)) ^   \
+         rk[(o)+1];                                                            \
+    s2 = GetTable(Te[0], GETBYTE(t2, 3)) ^ GetTable(Te[1], GETBYTE(t3, 2)) ^   \
+         GetTable(Te[2], GETBYTE(t0, 1)) ^ GetTable(Te[3], GETBYTE(t1, 0)) ^   \
+         rk[(o)+2];                                                            \
+    s3 = GetTable(Te[0], GETBYTE(t3, 3)) ^ GetTable(Te[1], GETBYTE(t0, 2)) ^   \
+         GetTable(Te[2], GETBYTE(t1, 1)) ^ GetTable(Te[3], GETBYTE(t2, 0)) ^   \
+         rk[(o)+3]
+#else
+#define ENC_ROUND_T_S(o)                                                       \
+    GetTable_Multi(Te[0], &t0, GETBYTE(s0, 3), &t1, GETBYTE(s1, 3),            \
+                          &t2, GETBYTE(s2, 3), &t3, GETBYTE(s3, 3));           \
+    XorTable_Multi(Te[1], &t0, GETBYTE(s1, 2), &t1, GETBYTE(s2, 2),            \
+                          &t2, GETBYTE(s3, 2), &t3, GETBYTE(s0, 2));           \
+    XorTable_Multi(Te[2], &t0, GETBYTE(s2, 1), &t1, GETBYTE(s3, 1),            \
+                          &t2, GETBYTE(s0, 1), &t3, GETBYTE(s1, 1));           \
+    XorTable_Multi(Te[3], &t0, GETBYTE(s3, 0), &t1, GETBYTE(s0, 0),            \
+                          &t2, GETBYTE(s1, 0), &t3, GETBYTE(s2, 0));           \
+    t0 ^= rk[(o)+4]; t1 ^= rk[(o)+5]; t2 ^= rk[(o)+6]; t3 ^= rk[(o)+7];
+
+#define ENC_ROUND_S_T(o)                                                       \
+    GetTable_Multi(Te[0], &s0, GETBYTE(t0, 3), &s1, GETBYTE(t1, 3),            \
+                          &s2, GETBYTE(t2, 3), &s3, GETBYTE(t3, 3));           \
+    XorTable_Multi(Te[1], &s0, GETBYTE(t1, 2), &s1, GETBYTE(t2, 2),            \
+                          &s2, GETBYTE(t3, 2), &s3, GETBYTE(t0, 2));           \
+    XorTable_Multi(Te[2], &s0, GETBYTE(t2, 1), &s1, GETBYTE(t3, 1),            \
+                          &s2, GETBYTE(t0, 1), &s3, GETBYTE(t1, 1));           \
+    XorTable_Multi(Te[3], &s0, GETBYTE(t3, 0), &s1, GETBYTE(t0, 0),            \
+                          &s2, GETBYTE(t1, 0), &s3, GETBYTE(t2, 0));           \
+    s0 ^= rk[(o)+0]; s1 ^= rk[(o)+1]; s2 ^= rk[(o)+2]; s3 ^= rk[(o)+3];
+#endif
+
 #ifndef WOLFSSL_AES_NO_UNROLL
 /* Unroll the loop. */
-#define ENC_ROUND_T_S(o)                                            \
-    t0 = Te[0][GETBYTE(s0, 3)] ^ Te[1][GETBYTE(s1, 2)] ^            \
-         Te[2][GETBYTE(s2, 1)] ^ Te[3][GETBYTE(s3, 0)] ^ rk[(o)+4]; \
-    t1 = Te[0][GETBYTE(s1, 3)] ^ Te[1][GETBYTE(s2, 2)] ^            \
-         Te[2][GETBYTE(s3, 1)] ^ Te[3][GETBYTE(s0, 0)] ^ rk[(o)+5]; \
-    t2 = Te[0][GETBYTE(s2, 3)] ^ Te[1][GETBYTE(s3, 2)] ^            \
-         Te[2][GETBYTE(s0, 1)] ^ Te[3][GETBYTE(s1, 0)] ^ rk[(o)+6]; \
-    t3 = Te[0][GETBYTE(s3, 3)] ^ Te[1][GETBYTE(s0, 2)] ^            \
-         Te[2][GETBYTE(s1, 1)] ^ Te[3][GETBYTE(s2, 0)] ^ rk[(o)+7]
-#define ENC_ROUND_S_T(o)                                            \
-    s0 = Te[0][GETBYTE(t0, 3)] ^ Te[1][GETBYTE(t1, 2)] ^            \
-         Te[2][GETBYTE(t2, 1)] ^ Te[3][GETBYTE(t3, 0)] ^ rk[(o)+0]; \
-    s1 = Te[0][GETBYTE(t1, 3)] ^ Te[1][GETBYTE(t2, 2)] ^            \
-         Te[2][GETBYTE(t3, 1)] ^ Te[3][GETBYTE(t0, 0)] ^ rk[(o)+1]; \
-    s2 = Te[0][GETBYTE(t2, 3)] ^ Te[1][GETBYTE(t3, 2)] ^            \
-         Te[2][GETBYTE(t0, 1)] ^ Te[3][GETBYTE(t1, 0)] ^ rk[(o)+2]; \
-    s3 = Te[0][GETBYTE(t3, 3)] ^ Te[1][GETBYTE(t0, 2)] ^            \
-         Te[2][GETBYTE(t1, 1)] ^ Te[3][GETBYTE(t2, 0)] ^ rk[(o)+3]
-
                        ENC_ROUND_T_S( 0);
     ENC_ROUND_S_T( 8); ENC_ROUND_T_S( 8);
     ENC_ROUND_S_T(16); ENC_ROUND_T_S(16);
@@ -1902,60 +2155,14 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
      */
 
     for (;;) {
-        t0 =
-            Te[0][GETBYTE(s0, 3)] ^
-            Te[1][GETBYTE(s1, 2)] ^
-            Te[2][GETBYTE(s2, 1)] ^
-            Te[3][GETBYTE(s3, 0)] ^
-            rk[4];
-        t1 =
-            Te[0][GETBYTE(s1, 3)] ^
-            Te[1][GETBYTE(s2, 2)] ^
-            Te[2][GETBYTE(s3, 1)] ^
-            Te[3][GETBYTE(s0, 0)] ^
-            rk[5];
-        t2 =
-            Te[0][GETBYTE(s2, 3)] ^
-            Te[1][GETBYTE(s3, 2)] ^
-            Te[2][GETBYTE(s0, 1)] ^
-            Te[3][GETBYTE(s1, 0)] ^
-            rk[6];
-        t3 =
-            Te[0][GETBYTE(s3, 3)] ^
-            Te[1][GETBYTE(s0, 2)] ^
-            Te[2][GETBYTE(s1, 1)] ^
-            Te[3][GETBYTE(s2, 0)] ^
-            rk[7];
+        ENC_ROUND_T_S(0);
 
         rk += 8;
         if (--r == 0) {
             break;
         }
 
-        s0 =
-            Te[0][GETBYTE(t0, 3)] ^
-            Te[1][GETBYTE(t1, 2)] ^
-            Te[2][GETBYTE(t2, 1)] ^
-            Te[3][GETBYTE(t3, 0)] ^
-            rk[0];
-        s1 =
-            Te[0][GETBYTE(t1, 3)] ^
-            Te[1][GETBYTE(t2, 2)] ^
-            Te[2][GETBYTE(t3, 1)] ^
-            Te[3][GETBYTE(t0, 0)] ^
-            rk[1];
-        s2 =
-            Te[0][GETBYTE(t2, 3)] ^
-            Te[1][GETBYTE(t3, 2)] ^
-            Te[2][GETBYTE(t0, 1)] ^
-            Te[3][GETBYTE(t1, 0)] ^
-            rk[2];
-        s3 =
-            Te[0][GETBYTE(t3, 3)] ^
-            Te[1][GETBYTE(t0, 2)] ^
-            Te[2][GETBYTE(t1, 1)] ^
-            Te[3][GETBYTE(t2, 0)] ^
-            rk[3];
+        ENC_ROUND_S_T(0);
     }
 #endif
 
@@ -1964,30 +2171,57 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
      * map cipher state to byte array block:
      */
 
+#ifndef WOLFSSL_AES_TOUCH_LINES
     s0 =
-        (Te[2][GETBYTE(t0, 3)] & 0xff000000) ^
-        (Te[3][GETBYTE(t1, 2)] & 0x00ff0000) ^
-        (Te[0][GETBYTE(t2, 1)] & 0x0000ff00) ^
-        (Te[1][GETBYTE(t3, 0)] & 0x000000ff) ^
+        (GetTable(Te[2], GETBYTE(t0, 3)) & 0xff000000) ^
+        (GetTable(Te[3], GETBYTE(t1, 2)) & 0x00ff0000) ^
+        (GetTable(Te[0], GETBYTE(t2, 1)) & 0x0000ff00) ^
+        (GetTable(Te[1], GETBYTE(t3, 0)) & 0x000000ff) ^
         rk[0];
     s1 =
-        (Te[2][GETBYTE(t1, 3)] & 0xff000000) ^
-        (Te[3][GETBYTE(t2, 2)] & 0x00ff0000) ^
-        (Te[0][GETBYTE(t3, 1)] & 0x0000ff00) ^
-        (Te[1][GETBYTE(t0, 0)] & 0x000000ff) ^
+        (GetTable(Te[2], GETBYTE(t1, 3)) & 0xff000000) ^
+        (GetTable(Te[3], GETBYTE(t2, 2)) & 0x00ff0000) ^
+        (GetTable(Te[0], GETBYTE(t3, 1)) & 0x0000ff00) ^
+        (GetTable(Te[1], GETBYTE(t0, 0)) & 0x000000ff) ^
         rk[1];
     s2 =
-        (Te[2][GETBYTE(t2, 3)] & 0xff000000) ^
-        (Te[3][GETBYTE(t3, 2)] & 0x00ff0000) ^
-        (Te[0][GETBYTE(t0, 1)] & 0x0000ff00) ^
-        (Te[1][GETBYTE(t1, 0)] & 0x000000ff) ^
+        (GetTable(Te[2], GETBYTE(t2, 3)) & 0xff000000) ^
+        (GetTable(Te[3], GETBYTE(t3, 2)) & 0x00ff0000) ^
+        (GetTable(Te[0], GETBYTE(t0, 1)) & 0x0000ff00) ^
+        (GetTable(Te[1], GETBYTE(t1, 0)) & 0x000000ff) ^
         rk[2];
     s3 =
-        (Te[2][GETBYTE(t3, 3)] & 0xff000000) ^
-        (Te[3][GETBYTE(t0, 2)] & 0x00ff0000) ^
-        (Te[0][GETBYTE(t1, 1)] & 0x0000ff00) ^
-        (Te[1][GETBYTE(t2, 0)] & 0x000000ff) ^
+        (GetTable(Te[2], GETBYTE(t3, 3)) & 0xff000000) ^
+        (GetTable(Te[3], GETBYTE(t0, 2)) & 0x00ff0000) ^
+        (GetTable(Te[0], GETBYTE(t1, 1)) & 0x0000ff00) ^
+        (GetTable(Te[1], GETBYTE(t2, 0)) & 0x000000ff) ^
         rk[3];
+#else
+{
+    word32 u0;
+    word32 u1;
+    word32 u2;
+    word32 u3;
+
+    s0 = rk[0]; s1 = rk[1]; s2 = rk[2]; s3 = rk[3];
+    GetTable_Multi(Te[2], &u0, GETBYTE(t0, 3), &u1, GETBYTE(t1, 3),
+                          &u2, GETBYTE(t2, 3), &u3, GETBYTE(t3, 3));
+    s0 ^= u0 & 0xff000000; s1 ^= u1 & 0xff000000;
+    s2 ^= u2 & 0xff000000; s3 ^= u3 & 0xff000000;
+    GetTable_Multi(Te[3], &u0, GETBYTE(t1, 2), &u1, GETBYTE(t2, 2),
+                          &u2, GETBYTE(t3, 2), &u3, GETBYTE(t0, 2));
+    s0 ^= u0 & 0x00ff0000; s1 ^= u1 & 0x00ff0000;
+    s2 ^= u2 & 0x00ff0000; s3 ^= u3 & 0x00ff0000;
+    GetTable_Multi(Te[0], &u0, GETBYTE(t2, 1), &u1, GETBYTE(t3, 1),
+                          &u2, GETBYTE(t0, 1), &u3, GETBYTE(t1, 1));
+    s0 ^= u0 & 0x0000ff00; s1 ^= u1 & 0x0000ff00;
+    s2 ^= u2 & 0x0000ff00; s3 ^= u3 & 0x0000ff00;
+    GetTable_Multi(Te[1], &u0, GETBYTE(t3, 0), &u1, GETBYTE(t0, 0),
+                          &u2, GETBYTE(t1, 0), &u3, GETBYTE(t2, 0));
+    s0 ^= u0 & 0x000000ff; s1 ^= u1 & 0x000000ff;
+    s2 ^= u2 & 0x000000ff; s3 ^= u3 & 0x000000ff;
+}
+#endif
 #else
 #ifndef WC_NO_CACHE_RESISTANT
     s0 |= PreFetchSBox();
@@ -1997,25 +2231,25 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
     /* Two rounds at a time */
     for (rk += 4; r > 1; r--, rk += 4) {
         t0 =
-            ((word32)Tsbox[GETBYTE(s0, 3)] << 24) ^
-            ((word32)Tsbox[GETBYTE(s1, 2)] << 16) ^
-            ((word32)Tsbox[GETBYTE(s2, 1)] <<  8) ^
-            ((word32)Tsbox[GETBYTE(s3, 0)]);
+            ((word32)GetTable8(Tsbox, GETBYTE(s0, 3)) << 24) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s1, 2)) << 16) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s2, 1)) <<  8) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s3, 0)));
         t1 =
-            ((word32)Tsbox[GETBYTE(s1, 3)] << 24) ^
-            ((word32)Tsbox[GETBYTE(s2, 2)] << 16) ^
-            ((word32)Tsbox[GETBYTE(s3, 1)] <<  8) ^
-            ((word32)Tsbox[GETBYTE(s0, 0)]);
+            ((word32)GetTable8(Tsbox, GETBYTE(s1, 3)) << 24) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s2, 2)) << 16) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s3, 1)) <<  8) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s0, 0)));
         t2 =
-            ((word32)Tsbox[GETBYTE(s2, 3)] << 24) ^
-            ((word32)Tsbox[GETBYTE(s3, 2)] << 16) ^
-            ((word32)Tsbox[GETBYTE(s0, 1)] <<  8) ^
-            ((word32)Tsbox[GETBYTE(s1, 0)]);
+            ((word32)GetTable8(Tsbox, GETBYTE(s2, 3)) << 24) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s3, 2)) << 16) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s0, 1)) <<  8) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s1, 0)));
         t3 =
-            ((word32)Tsbox[GETBYTE(s3, 3)] << 24) ^
-            ((word32)Tsbox[GETBYTE(s0, 2)] << 16) ^
-            ((word32)Tsbox[GETBYTE(s1, 1)] <<  8) ^
-            ((word32)Tsbox[GETBYTE(s2, 0)]);
+            ((word32)GetTable8(Tsbox, GETBYTE(s3, 3)) << 24) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s0, 2)) << 16) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s1, 1)) <<  8) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s2, 0)));
 
         s0 =
             (col_mul(t0, 3, 2, 0, 1) << 24) ^
@@ -2044,25 +2278,25 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
     }
 
     t0 =
-        ((word32)Tsbox[GETBYTE(s0, 3)] << 24) ^
-        ((word32)Tsbox[GETBYTE(s1, 2)] << 16) ^
-        ((word32)Tsbox[GETBYTE(s2, 1)] <<  8) ^
-        ((word32)Tsbox[GETBYTE(s3, 0)]);
+        ((word32)GetTable8(Tsbox, GETBYTE(s0, 3)) << 24) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s1, 2)) << 16) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s2, 1)) <<  8) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s3, 0)));
     t1 =
-        ((word32)Tsbox[GETBYTE(s1, 3)] << 24) ^
-        ((word32)Tsbox[GETBYTE(s2, 2)] << 16) ^
-        ((word32)Tsbox[GETBYTE(s3, 1)] <<  8) ^
-        ((word32)Tsbox[GETBYTE(s0, 0)]);
+        ((word32)GetTable8(Tsbox, GETBYTE(s1, 3)) << 24) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s2, 2)) << 16) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s3, 1)) <<  8) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s0, 0)));
     t2 =
-        ((word32)Tsbox[GETBYTE(s2, 3)] << 24) ^
-        ((word32)Tsbox[GETBYTE(s3, 2)] << 16) ^
-        ((word32)Tsbox[GETBYTE(s0, 1)] <<  8) ^
-        ((word32)Tsbox[GETBYTE(s1, 0)]);
+        ((word32)GetTable8(Tsbox, GETBYTE(s2, 3)) << 24) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s3, 2)) << 16) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s0, 1)) <<  8) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s1, 0)));
     t3 =
-        ((word32)Tsbox[GETBYTE(s3, 3)] << 24) ^
-        ((word32)Tsbox[GETBYTE(s0, 2)] << 16) ^
-        ((word32)Tsbox[GETBYTE(s1, 1)] <<  8) ^
-        ((word32)Tsbox[GETBYTE(s2, 0)]);
+        ((word32)GetTable8(Tsbox, GETBYTE(s3, 3)) << 24) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s0, 2)) << 16) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s1, 1)) <<  8) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s2, 0)));
     s0 = t0 ^ rk[0];
     s1 = t1 ^ rk[1];
     s2 = t2 ^ rk[2];
@@ -2111,6 +2345,7 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTd(void)
 /* load Td Table4 into cache by cache line stride */
 static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTd4(void)
 {
+#ifndef WOLFSSL_AES_TOUCH_LINES
     word32 x = 0;
     int i;
 
@@ -2118,6 +2353,9 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTd4(void)
         x &= (word32)Td4[i];
     }
     return x;
+#else
+    return 0;
+#endif
 }
 #endif
 
@@ -2150,7 +2388,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         if ((const byte*)aes->tmp != inBlock)
             XMEMCPY(aes->tmp, inBlock, AES_BLOCK_SIZE);
         AES_ECB_decrypt(inBlock, outBlock, AES_BLOCK_SIZE, (byte*)aes->key,
-                        aes->rounds);
+                        (int)aes->rounds);
         return 0;
     }
     else {
@@ -2201,27 +2439,51 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     s0 |= PreFetchTd();
 #endif
 
-#ifndef WOLFSSL_AES_NO_UNROLL
+#ifndef WOLFSSL_AES_TOUCH_LINES
 /* Unroll the loop. */
 #define DEC_ROUND_T_S(o)                                            \
-    t0 = Td[0][GETBYTE(s0, 3)] ^ Td[1][GETBYTE(s3, 2)] ^            \
-         Td[2][GETBYTE(s2, 1)] ^ Td[3][GETBYTE(s1, 0)] ^ rk[(o)+4]; \
-    t1 = Td[0][GETBYTE(s1, 3)] ^ Td[1][GETBYTE(s0, 2)] ^            \
-         Td[2][GETBYTE(s3, 1)] ^ Td[3][GETBYTE(s2, 0)] ^ rk[(o)+5]; \
-    t2 = Td[0][GETBYTE(s2, 3)] ^ Td[1][GETBYTE(s1, 2)] ^            \
-         Td[2][GETBYTE(s0, 1)] ^ Td[3][GETBYTE(s3, 0)] ^ rk[(o)+6]; \
-    t3 = Td[0][GETBYTE(s3, 3)] ^ Td[1][GETBYTE(s2, 2)] ^            \
-         Td[2][GETBYTE(s1, 1)] ^ Td[3][GETBYTE(s0, 0)] ^ rk[(o)+7]
+    t0 = GetTable(Td[0], GETBYTE(s0, 3)) ^ GetTable(Td[1], GETBYTE(s3, 2)) ^            \
+         GetTable(Td[2], GETBYTE(s2, 1)) ^ GetTable(Td[3], GETBYTE(s1, 0)) ^ rk[(o)+4]; \
+    t1 = GetTable(Td[0], GETBYTE(s1, 3)) ^ GetTable(Td[1], GETBYTE(s0, 2)) ^            \
+         GetTable(Td[2], GETBYTE(s3, 1)) ^ GetTable(Td[3], GETBYTE(s2, 0)) ^ rk[(o)+5]; \
+    t2 = GetTable(Td[0], GETBYTE(s2, 3)) ^ GetTable(Td[1], GETBYTE(s1, 2)) ^            \
+         GetTable(Td[2], GETBYTE(s0, 1)) ^ GetTable(Td[3], GETBYTE(s3, 0)) ^ rk[(o)+6]; \
+    t3 = GetTable(Td[0], GETBYTE(s3, 3)) ^ GetTable(Td[1], GETBYTE(s2, 2)) ^            \
+         GetTable(Td[2], GETBYTE(s1, 1)) ^ GetTable(Td[3], GETBYTE(s0, 0)) ^ rk[(o)+7]
 #define DEC_ROUND_S_T(o)                                            \
-    s0 = Td[0][GETBYTE(t0, 3)] ^ Td[1][GETBYTE(t3, 2)] ^            \
-         Td[2][GETBYTE(t2, 1)] ^ Td[3][GETBYTE(t1, 0)] ^ rk[(o)+0]; \
-    s1 = Td[0][GETBYTE(t1, 3)] ^ Td[1][GETBYTE(t0, 2)] ^            \
-         Td[2][GETBYTE(t3, 1)] ^ Td[3][GETBYTE(t2, 0)] ^ rk[(o)+1]; \
-    s2 = Td[0][GETBYTE(t2, 3)] ^ Td[1][GETBYTE(t1, 2)] ^            \
-         Td[2][GETBYTE(t0, 1)] ^ Td[3][GETBYTE(t3, 0)] ^ rk[(o)+2]; \
-    s3 = Td[0][GETBYTE(t3, 3)] ^ Td[1][GETBYTE(t2, 2)] ^            \
-         Td[2][GETBYTE(t1, 1)] ^ Td[3][GETBYTE(t0, 0)] ^ rk[(o)+3]
+    s0 = GetTable(Td[0], GETBYTE(t0, 3)) ^ GetTable(Td[1], GETBYTE(t3, 2)) ^            \
+         GetTable(Td[2], GETBYTE(t2, 1)) ^ GetTable(Td[3], GETBYTE(t1, 0)) ^ rk[(o)+0]; \
+    s1 = GetTable(Td[0], GETBYTE(t1, 3)) ^ GetTable(Td[1], GETBYTE(t0, 2)) ^            \
+         GetTable(Td[2], GETBYTE(t3, 1)) ^ GetTable(Td[3], GETBYTE(t2, 0)) ^ rk[(o)+1]; \
+    s2 = GetTable(Td[0], GETBYTE(t2, 3)) ^ GetTable(Td[1], GETBYTE(t1, 2)) ^            \
+         GetTable(Td[2], GETBYTE(t0, 1)) ^ GetTable(Td[3], GETBYTE(t3, 0)) ^ rk[(o)+2]; \
+    s3 = GetTable(Td[0], GETBYTE(t3, 3)) ^ GetTable(Td[1], GETBYTE(t2, 2)) ^            \
+         GetTable(Td[2], GETBYTE(t1, 1)) ^ GetTable(Td[3], GETBYTE(t0, 0)) ^ rk[(o)+3]
+#else
+#define DEC_ROUND_T_S(o)                                                       \
+    GetTable_Multi(Td[0], &t0, GETBYTE(s0, 3), &t1, GETBYTE(s1, 3),            \
+                          &t2, GETBYTE(s2, 3), &t3, GETBYTE(s3, 3));           \
+    XorTable_Multi(Td[1], &t0, GETBYTE(s3, 2), &t1, GETBYTE(s0, 2),            \
+                          &t2, GETBYTE(s1, 2), &t3, GETBYTE(s2, 2));           \
+    XorTable_Multi(Td[2], &t0, GETBYTE(s2, 1), &t1, GETBYTE(s3, 1),            \
+                          &t2, GETBYTE(s0, 1), &t3, GETBYTE(s1, 1));           \
+    XorTable_Multi(Td[3], &t0, GETBYTE(s1, 0), &t1, GETBYTE(s2, 0),            \
+                          &t2, GETBYTE(s3, 0), &t3, GETBYTE(s0, 0));           \
+    t0 ^= rk[(o)+4]; t1 ^= rk[(o)+5]; t2 ^= rk[(o)+6]; t3 ^= rk[(o)+7];
 
+#define DEC_ROUND_S_T(o)                                                       \
+    GetTable_Multi(Td[0], &s0, GETBYTE(t0, 3), &s1, GETBYTE(t1, 3),            \
+                          &s2, GETBYTE(t2, 3), &s3, GETBYTE(t3, 3));           \
+    XorTable_Multi(Td[1], &s0, GETBYTE(t3, 2), &s1, GETBYTE(t0, 2),            \
+                          &s2, GETBYTE(t1, 2), &s3, GETBYTE(t2, 2));           \
+    XorTable_Multi(Td[2], &s0, GETBYTE(t2, 1), &s1, GETBYTE(t3, 1),            \
+                          &s2, GETBYTE(t0, 1), &s3, GETBYTE(t1, 1));           \
+    XorTable_Multi(Td[3], &s0, GETBYTE(t1, 0), &s1, GETBYTE(t2, 0),            \
+                          &s2, GETBYTE(t3, 0), &s3, GETBYTE(t0, 0));           \
+    s0 ^= rk[(o)+0]; s1 ^= rk[(o)+1]; s2 ^= rk[(o)+2]; s3 ^= rk[(o)+3];
+#endif
+
+#ifndef WOLFSSL_AES_NO_UNROLL
                        DEC_ROUND_T_S( 0);
     DEC_ROUND_S_T( 8); DEC_ROUND_T_S( 8);
     DEC_ROUND_S_T(16); DEC_ROUND_T_S(16);
@@ -2241,60 +2503,14 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
      */
 
     for (;;) {
-        t0 =
-            Td[0][GETBYTE(s0, 3)] ^
-            Td[1][GETBYTE(s3, 2)] ^
-            Td[2][GETBYTE(s2, 1)] ^
-            Td[3][GETBYTE(s1, 0)] ^
-            rk[4];
-        t1 =
-            Td[0][GETBYTE(s1, 3)] ^
-            Td[1][GETBYTE(s0, 2)] ^
-            Td[2][GETBYTE(s3, 1)] ^
-            Td[3][GETBYTE(s2, 0)] ^
-            rk[5];
-        t2 =
-            Td[0][GETBYTE(s2, 3)] ^
-            Td[1][GETBYTE(s1, 2)] ^
-            Td[2][GETBYTE(s0, 1)] ^
-            Td[3][GETBYTE(s3, 0)] ^
-            rk[6];
-        t3 =
-            Td[0][GETBYTE(s3, 3)] ^
-            Td[1][GETBYTE(s2, 2)] ^
-            Td[2][GETBYTE(s1, 1)] ^
-            Td[3][GETBYTE(s0, 0)] ^
-            rk[7];
+        DEC_ROUND_T_S(0);
 
         rk += 8;
         if (--r == 0) {
             break;
         }
 
-        s0 =
-            Td[0][GETBYTE(t0, 3)] ^
-            Td[1][GETBYTE(t3, 2)] ^
-            Td[2][GETBYTE(t2, 1)] ^
-            Td[3][GETBYTE(t1, 0)] ^
-            rk[0];
-        s1 =
-            Td[0][GETBYTE(t1, 3)] ^
-            Td[1][GETBYTE(t0, 2)] ^
-            Td[2][GETBYTE(t3, 1)] ^
-            Td[3][GETBYTE(t2, 0)] ^
-            rk[1];
-        s2 =
-            Td[0][GETBYTE(t2, 3)] ^
-            Td[1][GETBYTE(t1, 2)] ^
-            Td[2][GETBYTE(t0, 1)] ^
-            Td[3][GETBYTE(t3, 0)] ^
-            rk[2];
-        s3 =
-            Td[0][GETBYTE(t3, 3)] ^
-            Td[1][GETBYTE(t2, 2)] ^
-            Td[2][GETBYTE(t1, 1)] ^
-            Td[3][GETBYTE(t0, 0)] ^
-            rk[3];
+        DEC_ROUND_S_T(0);
     }
 #endif
     /*
@@ -2306,30 +2522,14 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     t0 |= PreFetchTd4();
 #endif
 
-    s0 =
-        ((word32)Td4[GETBYTE(t0, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(t3, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(t2, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(t1, 0)]) ^
-        rk[0];
-    s1 =
-        ((word32)Td4[GETBYTE(t1, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(t0, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(t3, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(t2, 0)]) ^
-        rk[1];
-    s2 =
-        ((word32)Td4[GETBYTE(t2, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(t1, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(t0, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(t3, 0)]) ^
-        rk[2];
-    s3 =
-        ((word32)Td4[GETBYTE(t3, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(t2, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(t1, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(t0, 0)]) ^
-        rk[3];
+    s0 = GetTable8_4(Td4, GETBYTE(t0, 3), GETBYTE(t3, 2),
+                          GETBYTE(t2, 1), GETBYTE(t1, 0)) ^ rk[0];
+    s1 = GetTable8_4(Td4, GETBYTE(t1, 3), GETBYTE(t0, 2),
+                          GETBYTE(t3, 1), GETBYTE(t2, 0)) ^ rk[1];
+    s2 = GetTable8_4(Td4, GETBYTE(t2, 3), GETBYTE(t1, 2),
+                          GETBYTE(t0, 1), GETBYTE(t3, 0)) ^ rk[2];
+    s3 = GetTable8_4(Td4, GETBYTE(t3, 3), GETBYTE(t2, 2),
+                          GETBYTE(t1, 1), GETBYTE(t0, 0)) ^ rk[3];
 #else
 #ifndef WC_NO_CACHE_RESISTANT
     s0 |= PreFetchTd4();
@@ -2338,28 +2538,28 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     r *= 2;
     for (rk += 4; r > 1; r--, rk += 4) {
         t0 =
-            ((word32)Td4[GETBYTE(s0, 3)] << 24) ^
-            ((word32)Td4[GETBYTE(s3, 2)] << 16) ^
-            ((word32)Td4[GETBYTE(s2, 1)] <<  8) ^
-            ((word32)Td4[GETBYTE(s1, 0)]) ^
+            ((word32)GetTable8(Td4, GETBYTE(s0, 3)) << 24) ^
+            ((word32)GetTable8(Td4, GETBYTE(s3, 2)) << 16) ^
+            ((word32)GetTable8(Td4, GETBYTE(s2, 1)) <<  8) ^
+            ((word32)GetTable8(Td4, GETBYTE(s1, 0))) ^
             rk[0];
         t1 =
-            ((word32)Td4[GETBYTE(s1, 3)] << 24) ^
-            ((word32)Td4[GETBYTE(s0, 2)] << 16) ^
-            ((word32)Td4[GETBYTE(s3, 1)] <<  8) ^
-            ((word32)Td4[GETBYTE(s2, 0)]) ^
+            ((word32)GetTable8(Td4, GETBYTE(s1, 3)) << 24) ^
+            ((word32)GetTable8(Td4, GETBYTE(s0, 2)) << 16) ^
+            ((word32)GetTable8(Td4, GETBYTE(s3, 1)) <<  8) ^
+            ((word32)GetTable8(Td4, GETBYTE(s2, 0))) ^
             rk[1];
         t2 =
-            ((word32)Td4[GETBYTE(s2, 3)] << 24) ^
-            ((word32)Td4[GETBYTE(s1, 2)] << 16) ^
-            ((word32)Td4[GETBYTE(s0, 1)] <<  8) ^
-            ((word32)Td4[GETBYTE(s3, 0)]) ^
+            ((word32)GetTable8(Td4, GETBYTE(s2, 3)) << 24) ^
+            ((word32)GetTable8(Td4, GETBYTE(s1, 2)) << 16) ^
+            ((word32)GetTable8(Td4, GETBYTE(s0, 1)) <<  8) ^
+            ((word32)GetTable8(Td4, GETBYTE(s3, 0))) ^
             rk[2];
         t3 =
-            ((word32)Td4[GETBYTE(s3, 3)] << 24) ^
-            ((word32)Td4[GETBYTE(s2, 2)] << 16) ^
-            ((word32)Td4[GETBYTE(s1, 1)] <<  8) ^
-            ((word32)Td4[GETBYTE(s0, 0)]) ^
+            ((word32)GetTable8(Td4, GETBYTE(s3, 3)) << 24) ^
+            ((word32)GetTable8(Td4, GETBYTE(s2, 2)) << 16) ^
+            ((word32)GetTable8(Td4, GETBYTE(s1, 1)) <<  8) ^
+            ((word32)GetTable8(Td4, GETBYTE(s0, 0))) ^
             rk[3];
 
         s0 =
@@ -2385,25 +2585,25 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     }
 
     t0 =
-        ((word32)Td4[GETBYTE(s0, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(s3, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(s2, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(s1, 0)]);
+        ((word32)GetTable8(Td4, GETBYTE(s0, 3)) << 24) ^
+        ((word32)GetTable8(Td4, GETBYTE(s3, 2)) << 16) ^
+        ((word32)GetTable8(Td4, GETBYTE(s2, 1)) <<  8) ^
+        ((word32)GetTable8(Td4, GETBYTE(s1, 0)));
     t1 =
-        ((word32)Td4[GETBYTE(s1, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(s0, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(s3, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(s2, 0)]);
+        ((word32)GetTable8(Td4, GETBYTE(s1, 3)) << 24) ^
+        ((word32)GetTable8(Td4, GETBYTE(s0, 2)) << 16) ^
+        ((word32)GetTable8(Td4, GETBYTE(s3, 1)) <<  8) ^
+        ((word32)GetTable8(Td4, GETBYTE(s2, 0)));
     t2 =
-        ((word32)Td4[GETBYTE(s2, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(s1, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(s0, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(s3, 0)]);
+        ((word32)GetTable8(Td4, GETBYTE(s2, 3)) << 24) ^
+        ((word32)GetTable8(Td4, GETBYTE(s1, 2)) << 16) ^
+        ((word32)GetTable8(Td4, GETBYTE(s0, 1)) <<  8) ^
+        ((word32)GetTable8(Td4, GETBYTE(s3, 0)));
     t3 =
-        ((word32)Td4[GETBYTE(s3, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(s2, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(s1, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(s0, 0)]);
+        ((word32)GetTable8(Td4, GETBYTE(s3, 3)) << 24) ^
+        ((word32)GetTable8(Td4, GETBYTE(s2, 2)) << 16) ^
+        ((word32)GetTable8(Td4, GETBYTE(s1, 1)) <<  8) ^
+        ((word32)GetTable8(Td4, GETBYTE(s0, 0)));
     s0 = t0 ^ rk[0];
     s1 = t1 ^ rk[1];
     s2 = t2 ^ rk[2];
@@ -2676,6 +2876,24 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
             return BAD_FUNC_ARG;
         }
 
+    #if !defined(WOLFSSL_AES_128)
+        if (keylen == 16) {
+            return BAD_FUNC_ARG;
+        }
+    #endif
+
+    #if !defined(WOLFSSL_AES_192)
+        if (keylen == 24) {
+            return BAD_FUNC_ARG;
+        }
+    #endif
+
+    #if !defined(WOLFSSL_AES_256)
+        if (keylen == 32) {
+            return BAD_FUNC_ARG;
+        }
+    #endif
+
         aes->keylen = keylen;
         aes->rounds = keylen/4 + 6;
 
@@ -2893,7 +3111,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         aes->left = 0;
     #endif
 
-        aes->keylen = keylen;
+        aes->keylen = (int)keylen;
         aes->rounds = (keylen/4) + 6;
 
     #ifdef WOLFSSL_AESNI
@@ -2903,16 +3121,22 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
             checkAESNI = 1;
         }
         if (haveAESNI) {
+            #ifdef WOLFSSL_LINUXKM
+            /* runtime alignment check */
+            if ((wc_ptr_t)&aes->key & (wc_ptr_t)0xf) {
+                return BAD_ALIGN_E;
+            }
+            #endif
             aes->use_aesni = 1;
             if (iv)
                 XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
             else
                 XMEMSET(aes->reg, 0, AES_BLOCK_SIZE);
             if (dir == AES_ENCRYPTION)
-                return AES_set_encrypt_key(userKey, keylen * 8, aes);
+                return AES_set_encrypt_key(userKey, (int)keylen * 8, aes);
         #ifdef HAVE_AES_DECRYPT
             else
-                return AES_set_decrypt_key(userKey, keylen * 8, aes);
+                return AES_set_decrypt_key(userKey, (int)keylen * 8, aes);
         #endif
         }
     #endif /* WOLFSSL_AESNI */
@@ -2978,15 +3202,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
                 temp  = rk[3];
                 rk[4] = rk[0] ^
             #ifndef WOLFSSL_AES_SMALL_TABLES
-                    (Te[2][GETBYTE(temp, 2)] & 0xff000000) ^
-                    (Te[3][GETBYTE(temp, 1)] & 0x00ff0000) ^
-                    (Te[0][GETBYTE(temp, 0)] & 0x0000ff00) ^
-                    (Te[1][GETBYTE(temp, 3)] & 0x000000ff) ^
+                    (GetTable(Te[2], GETBYTE(temp, 2)) & 0xff000000) ^
+                    (GetTable(Te[3], GETBYTE(temp, 1)) & 0x00ff0000) ^
+                    (GetTable(Te[0], GETBYTE(temp, 0)) & 0x0000ff00) ^
+                    (GetTable(Te[1], GETBYTE(temp, 3)) & 0x000000ff) ^
             #else
-                    ((word32)Tsbox[GETBYTE(temp, 2)] << 24) ^
-                    ((word32)Tsbox[GETBYTE(temp, 1)] << 16) ^
-                    ((word32)Tsbox[GETBYTE(temp, 0)] <<  8) ^
-                    ((word32)Tsbox[GETBYTE(temp, 3)]) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 2)) << 24) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 1)) << 16) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 0)) <<  8) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 3))) ^
             #endif
                     rcon[i];
                 rk[5] = rk[1] ^ rk[4];
@@ -3012,15 +3236,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
                 temp = rk[ 5];
                 rk[ 6] = rk[ 0] ^
             #ifndef WOLFSSL_AES_SMALL_TABLES
-                    (Te[2][GETBYTE(temp, 2)] & 0xff000000) ^
-                    (Te[3][GETBYTE(temp, 1)] & 0x00ff0000) ^
-                    (Te[0][GETBYTE(temp, 0)] & 0x0000ff00) ^
-                    (Te[1][GETBYTE(temp, 3)] & 0x000000ff) ^
+                    (GetTable(Te[2], GETBYTE(temp, 2)) & 0xff000000) ^
+                    (GetTable(Te[3], GETBYTE(temp, 1)) & 0x00ff0000) ^
+                    (GetTable(Te[0], GETBYTE(temp, 0)) & 0x0000ff00) ^
+                    (GetTable(Te[1], GETBYTE(temp, 3)) & 0x000000ff) ^
             #else
-                    ((word32)Tsbox[GETBYTE(temp, 2)] << 24) ^
-                    ((word32)Tsbox[GETBYTE(temp, 1)] << 16) ^
-                    ((word32)Tsbox[GETBYTE(temp, 0)] <<  8) ^
-                    ((word32)Tsbox[GETBYTE(temp, 3)]) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 2)) << 24) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 1)) << 16) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 0)) <<  8) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 3))) ^
             #endif
                     rcon[i];
                 rk[ 7] = rk[ 1] ^ rk[ 6];
@@ -3047,15 +3271,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
                 temp = rk[ 7];
                 rk[ 8] = rk[ 0] ^
             #ifndef WOLFSSL_AES_SMALL_TABLES
-                    (Te[2][GETBYTE(temp, 2)] & 0xff000000) ^
-                    (Te[3][GETBYTE(temp, 1)] & 0x00ff0000) ^
-                    (Te[0][GETBYTE(temp, 0)] & 0x0000ff00) ^
-                    (Te[1][GETBYTE(temp, 3)] & 0x000000ff) ^
+                    (GetTable(Te[2], GETBYTE(temp, 2)) & 0xff000000) ^
+                    (GetTable(Te[3], GETBYTE(temp, 1)) & 0x00ff0000) ^
+                    (GetTable(Te[0], GETBYTE(temp, 0)) & 0x0000ff00) ^
+                    (GetTable(Te[1], GETBYTE(temp, 3)) & 0x000000ff) ^
             #else
-                    ((word32)Tsbox[GETBYTE(temp, 2)] << 24) ^
-                    ((word32)Tsbox[GETBYTE(temp, 1)] << 16) ^
-                    ((word32)Tsbox[GETBYTE(temp, 0)] <<  8) ^
-                    ((word32)Tsbox[GETBYTE(temp, 3)]) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 2)) << 24) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 1)) << 16) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 0)) <<  8) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 3))) ^
             #endif
                     rcon[i];
                 rk[ 9] = rk[ 1] ^ rk[ 8];
@@ -3066,15 +3290,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
                 temp = rk[11];
                 rk[12] = rk[ 4] ^
             #ifndef WOLFSSL_AES_SMALL_TABLES
-                    (Te[2][GETBYTE(temp, 3)] & 0xff000000) ^
-                    (Te[3][GETBYTE(temp, 2)] & 0x00ff0000) ^
-                    (Te[0][GETBYTE(temp, 1)] & 0x0000ff00) ^
-                    (Te[1][GETBYTE(temp, 0)] & 0x000000ff);
+                    (GetTable(Te[2], GETBYTE(temp, 3)) & 0xff000000) ^
+                    (GetTable(Te[3], GETBYTE(temp, 2)) & 0x00ff0000) ^
+                    (GetTable(Te[0], GETBYTE(temp, 1)) & 0x0000ff00) ^
+                    (GetTable(Te[1], GETBYTE(temp, 0)) & 0x000000ff);
             #else
-                    ((word32)Tsbox[GETBYTE(temp, 3)] << 24) ^
-                    ((word32)Tsbox[GETBYTE(temp, 2)] << 16) ^
-                    ((word32)Tsbox[GETBYTE(temp, 1)] <<  8) ^
-                    ((word32)Tsbox[GETBYTE(temp, 0)]);
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 3)) << 24) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 2)) << 16) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 1)) <<  8) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 0)));
             #endif
                 rk[13] = rk[ 5] ^ rk[12];
                 rk[14] = rk[ 6] ^ rk[13];
@@ -3109,25 +3333,25 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
             for (i = 1; i < aes->rounds; i++) {
                 rk += 4;
                 rk[0] =
-                    Td[0][Te[1][GETBYTE(rk[0], 3)] & 0xff] ^
-                    Td[1][Te[1][GETBYTE(rk[0], 2)] & 0xff] ^
-                    Td[2][Te[1][GETBYTE(rk[0], 1)] & 0xff] ^
-                    Td[3][Te[1][GETBYTE(rk[0], 0)] & 0xff];
+                    GetTable(Td[0], GetTable(Te[1], GETBYTE(rk[0], 3)) & 0xff) ^
+                    GetTable(Td[1], GetTable(Te[1], GETBYTE(rk[0], 2)) & 0xff) ^
+                    GetTable(Td[2], GetTable(Te[1], GETBYTE(rk[0], 1)) & 0xff) ^
+                    GetTable(Td[3], GetTable(Te[1], GETBYTE(rk[0], 0)) & 0xff);
                 rk[1] =
-                    Td[0][Te[1][GETBYTE(rk[1], 3)] & 0xff] ^
-                    Td[1][Te[1][GETBYTE(rk[1], 2)] & 0xff] ^
-                    Td[2][Te[1][GETBYTE(rk[1], 1)] & 0xff] ^
-                    Td[3][Te[1][GETBYTE(rk[1], 0)] & 0xff];
+                    GetTable(Td[0], GetTable(Te[1], GETBYTE(rk[1], 3)) & 0xff) ^
+                    GetTable(Td[1], GetTable(Te[1], GETBYTE(rk[1], 2)) & 0xff) ^
+                    GetTable(Td[2], GetTable(Te[1], GETBYTE(rk[1], 1)) & 0xff) ^
+                    GetTable(Td[3], GetTable(Te[1], GETBYTE(rk[1], 0)) & 0xff);
                 rk[2] =
-                    Td[0][Te[1][GETBYTE(rk[2], 3)] & 0xff] ^
-                    Td[1][Te[1][GETBYTE(rk[2], 2)] & 0xff] ^
-                    Td[2][Te[1][GETBYTE(rk[2], 1)] & 0xff] ^
-                    Td[3][Te[1][GETBYTE(rk[2], 0)] & 0xff];
+                    GetTable(Td[0], GetTable(Te[1], GETBYTE(rk[2], 3)) & 0xff) ^
+                    GetTable(Td[1], GetTable(Te[1], GETBYTE(rk[2], 2)) & 0xff) ^
+                    GetTable(Td[2], GetTable(Te[1], GETBYTE(rk[2], 1)) & 0xff) ^
+                    GetTable(Td[3], GetTable(Te[1], GETBYTE(rk[2], 0)) & 0xff);
                 rk[3] =
-                    Td[0][Te[1][GETBYTE(rk[3], 3)] & 0xff] ^
-                    Td[1][Te[1][GETBYTE(rk[3], 2)] & 0xff] ^
-                    Td[2][Te[1][GETBYTE(rk[3], 1)] & 0xff] ^
-                    Td[3][Te[1][GETBYTE(rk[3], 0)] & 0xff];
+                    GetTable(Td[0], GetTable(Te[1], GETBYTE(rk[3], 3)) & 0xff) ^
+                    GetTable(Td[1], GetTable(Te[1], GETBYTE(rk[3], 2)) & 0xff) ^
+                    GetTable(Td[2], GetTable(Te[1], GETBYTE(rk[3], 1)) & 0xff) ^
+                    GetTable(Td[3], GetTable(Te[1], GETBYTE(rk[3], 0)) & 0xff);
             }
         #endif
         }
@@ -3790,7 +4014,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #elif defined(FREESCALE_MMCAU)
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-        int i;
         int offset = 0;
         byte *iv;
         byte temp_block[AES_BLOCK_SIZE];
@@ -3811,8 +4034,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
 
             /* XOR block with IV for CBC */
-            for (i = 0; i < AES_BLOCK_SIZE; i++)
-                temp_block[i] ^= iv[i];
+            xorbuf(temp_block, iv, AES_BLOCK_SIZE);
 
             ret = wc_AesEncrypt(aes, temp_block, out + offset);
             if (ret != 0)
@@ -3829,7 +4051,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #ifdef HAVE_AES_DECRYPT
     int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-        int i;
         int offset = 0;
         byte* iv;
         byte temp_block[AES_BLOCK_SIZE];
@@ -3851,8 +4072,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             wc_AesDecrypt(aes, in + offset, out + offset);
 
             /* XOR block with IV for CBC */
-            for (i = 0; i < AES_BLOCK_SIZE; i++)
-                (out + offset)[i] ^= iv[i];
+            xorbuf(out + offset, iv, AES_BLOCK_SIZE);
 
             /* store IV for next block */
             XMEMCPY(iv, temp_block, AES_BLOCK_SIZE);
@@ -3995,7 +4215,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #endif
 
     #ifdef WOLF_CRYPTO_CB
-        if (aes->devId != INVALID_DEVID) {
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
             int crypto_cb_ret = wc_CryptoCb_AesCbcEncrypt(aes, out, in, sz);
             if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
                 return crypto_cb_ret;
@@ -4057,7 +4280,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 XMEMCPY(tmp_align, in, sz);
                 SAVE_VECTOR_REGISTERS(XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER); return _svr_ret;);
                 AES_CBC_encrypt(tmp_align, tmp_align, (byte*)aes->reg, sz,
-                                                  (byte*)aes->key, aes->rounds);
+                                             (byte*)aes->key, (int)aes->rounds);
                 RESTORE_VECTOR_REGISTERS();
                 /* store iv for next call */
                 XMEMCPY(aes->reg, tmp_align + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
@@ -4074,7 +4297,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
             AES_CBC_encrypt(in, out, (byte*)aes->reg, sz, (byte*)aes->key,
-                            aes->rounds);
+                            (int)aes->rounds);
             RESTORE_VECTOR_REGISTERS();
             /* store iv for next call */
             XMEMCPY(aes->reg, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
@@ -4128,7 +4351,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #endif
 
     #ifdef WOLF_CRYPTO_CB
-        if (aes->devId != INVALID_DEVID) {
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
             int crypto_cb_ret = wc_CryptoCb_AesCbcDecrypt(aes, out, in, sz);
             if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
                 return crypto_cb_ret;
@@ -4189,7 +4415,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                             aes->rounds);
             #else /* WOLFSSL_AESNI_BYx */
             AES_CBC_decrypt_by8(in, out, (byte*)aes->reg, sz, (byte*)aes->key,
-                            aes->rounds);
+                            (int)aes->rounds);
             #endif /* WOLFSSL_AESNI_BYx */
             /* store iv for next call */
             RESTORE_VECTOR_REGISTERS();
@@ -4437,16 +4663,19 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         /* Software AES - CTR Encrypt */
         int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
-            byte* tmp;
             byte scratch[AES_BLOCK_SIZE];
             int ret;
+            word32 processed;
 
             if (aes == NULL || out == NULL || in == NULL) {
                 return BAD_FUNC_ARG;
             }
 
         #ifdef WOLF_CRYPTO_CB
-            if (aes->devId != INVALID_DEVID) {
+            #ifndef WOLF_CRYPTO_CB_FIND
+            if (aes->devId != INVALID_DEVID)
+            #endif
+            {
                 int crypto_cb_ret = wc_CryptoCb_AesCtrEncrypt(aes, out, in, sz);
                 if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
                     return crypto_cb_ret;
@@ -4455,17 +4684,18 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         #endif
 
             /* consume any unused bytes left in aes->tmp */
-            tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
-            while (aes->left && sz) {
-               *(out++) = *(in++) ^ *(tmp++);
-               aes->left--;
-               sz--;
-            }
+            processed = min(aes->left, sz);
+            xorbufout(out, in, (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left,
+                      processed);
+            out += processed;
+            in += processed;
+            aes->left -= processed;
+            sz -= processed;
 
         #if defined(HAVE_AES_ECB) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
             !defined(XTRANSFORM_AESCTRBLOCK)
             if (in != out && sz >= AES_BLOCK_SIZE) {
-                int blocks = sz / AES_BLOCK_SIZE;
+                word32 blocks = sz / AES_BLOCK_SIZE;
                 byte* counter = (byte*)aes->reg;
                 byte* c = out;
                 while (blocks--) {
@@ -4527,13 +4757,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 }
                 IncrementAesCounter((byte*)aes->reg);
 
-                aes->left = AES_BLOCK_SIZE;
-                tmp = (byte*)aes->tmp;
-
-                while (sz--) {
-                    *(out++) = *(in++) ^ *(tmp++);
-                    aes->left--;
-                }
+                aes->left = AES_BLOCK_SIZE - sz;
+                xorbufout(out, in, aes->tmp, sz);
             }
 
         #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -4564,7 +4789,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 {
     int i;
-    for (i = ctrSz-1; i >= 0; i--) {
+    for (i = (int)ctrSz - 1; i >= 0; i--) {
         if (++ctr[i])
             break;
     }
@@ -4628,14 +4853,14 @@ static WC_INLINE void FlattenSzInBits(byte* buf, word32 sz)
     sz <<= 3;
 
     /* copy over the words of the sz into the destination buffer */
-    buf[0] = (szHi >> 24) & 0xff;
-    buf[1] = (szHi >> 16) & 0xff;
-    buf[2] = (szHi >>  8) & 0xff;
-    buf[3] = szHi & 0xff;
-    buf[4] = (sz >> 24) & 0xff;
-    buf[5] = (sz >> 16) & 0xff;
-    buf[6] = (sz >>  8) & 0xff;
-    buf[7] = sz & 0xff;
+    buf[0] = (byte)(szHi >> 24);
+    buf[1] = (byte)(szHi >> 16);
+    buf[2] = (byte)(szHi >>  8);
+    buf[3] = (byte)szHi;
+    buf[4] = (byte)(sz >> 24);
+    buf[5] = (byte)(sz >> 16);
+    buf[6] = (byte)(sz >>  8);
+    buf[7] = (byte)sz;
 }
 
 
@@ -4683,12 +4908,12 @@ static void GenerateM0(Aes* aes)
 #elif defined(GCM_TABLE_4BIT)
 
 #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_16BIT_CPU)
-static WC_INLINE void Shift4_M0(byte *r8, byte* z8)
+static WC_INLINE void Shift4_M0(byte *r8, byte *z8)
 {
     int i;
     for (i = 15; i > 0; i--)
-        r8[i] = (z8[i-1] << 4) | (z8[i] >> 4);
-    r8[0] = z8[0] >> 4;
+        r8[i] = (byte)(z8[i-1] << 4) | (byte)(z8[i] >> 4);
+    r8[0] = (byte)(z8[0] >> 4);
 }
 #endif
 
@@ -5293,7 +5518,7 @@ static WC_INLINE void GMULT(byte *x, byte m[32][AES_BLOCK_SIZE])
         z8[0] ^= m8[0]; z8[1] ^= m8[1]; z8[2] ^= m8[2]; z8[3] ^= m8[3];
 
         /* Cache top byte for remainder calculations - lost in rotate. */
-        a = z8[3] >> 24;
+        a = (byte)(z8[3] >> 24);
 
         /* Rotate Z by 8-bits */
         z8[3] = (z8[2] >> 24) | (z8[3] << 8);
@@ -5368,7 +5593,7 @@ static WC_INLINE void GMULT(byte *x, byte m[32][AES_BLOCK_SIZE])
         z8[1] ^= m8[1];
 
         /* Cache top byte for remainder calculations - lost in rotate. */
-        a = z8[1] >> 56;
+        a = (byte)(z8[1] >> 56);
 
         /* Rotate Z by 8-bits */
         z8[1] = (z8[0] >> 56) | (z8[1] << 8);
@@ -5398,10 +5623,10 @@ static WC_INLINE void GMULT(byte *x, byte m[32][AES_BLOCK_SIZE])
     a = (z8[1] >> 56) & 0xf;
 
     /* Rotate z by 4-bits */
-    n3 = z8[1] & 0xf0f0f0f0f0f0f0f0ULL;
-    n2 = z8[1] & 0x0f0f0f0f0f0f0f0fULL;
-    n1 = z8[0] & 0xf0f0f0f0f0f0f0f0ULL;
-    n0 = z8[0] & 0x0f0f0f0f0f0f0f0fULL;
+    n3 = z8[1] & W64LIT(0xf0f0f0f0f0f0f0f0U);
+    n2 = z8[1] & W64LIT(0x0f0f0f0f0f0f0f0fU);
+    n1 = z8[0] & W64LIT(0xf0f0f0f0f0f0f0f0U);
+    n0 = z8[0] & W64LIT(0x0f0f0f0f0f0f0f0fU);
     z8[1] = (n3 >> 4) | (n2 << 12) | (n0 >> 52);
     z8[0] = (n1 >> 4) | (n0 << 12);
 
@@ -6532,9 +6757,9 @@ WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
     word32 partial = sz % AES_BLOCK_SIZE;
     const byte* p = in;
     byte* c = out;
-    ALIGN32 byte counter[AES_BLOCK_SIZE];
-    ALIGN32 byte initialCounter[AES_BLOCK_SIZE];
-    ALIGN32 byte scratch[AES_BLOCK_SIZE];
+    ALIGN16 byte counter[AES_BLOCK_SIZE];
+    ALIGN16 byte initialCounter[AES_BLOCK_SIZE];
+    ALIGN16 byte scratch[AES_BLOCK_SIZE];
 
     if (ivSz == GCM_NONCE_MID_SZ) {
         /* Counter is IV with bottom 4 bytes set to: 0x00,0x00,0x00,0x01. */
@@ -6643,7 +6868,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (aes->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
         int crypto_cb_ret =
             wc_CryptoCb_AesGcmEncrypt(aes, out, in, sz, iv, ivSz, authTag,
                                       authTagSz, authIn, authInSz);
@@ -6708,7 +6936,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (IS_INTEL_AVX2(intel_flags)) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
         AES_GCM_encrypt_avx2(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
-                                 authTagSz, (const byte*)aes->key, aes->rounds);
+                            authTagSz, (const byte*)aes->key, (int)aes->rounds);
         RESTORE_VECTOR_REGISTERS();
         return 0;
     }
@@ -6718,7 +6946,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (IS_INTEL_AVX1(intel_flags)) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
         AES_GCM_encrypt_avx1(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
-                                 authTagSz, (const byte*)aes->key, aes->rounds);
+                            authTagSz, (const byte*)aes->key, (int)aes->rounds);
         RESTORE_VECTOR_REGISTERS();
         return 0;
     }
@@ -6726,7 +6954,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     #endif
     if (haveAESNI) {
         AES_GCM_encrypt(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
-                                 authTagSz, (const byte*)aes->key, aes->rounds);
+                            authTagSz, (const byte*)aes->key, (int)aes->rounds);
         return 0;
     }
     else
@@ -7051,10 +7279,10 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     word32 partial = sz % AES_BLOCK_SIZE;
     const byte* c = in;
     byte* p = out;
-    ALIGN32 byte counter[AES_BLOCK_SIZE];
-    ALIGN32 byte scratch[AES_BLOCK_SIZE];
-    ALIGN32 byte Tprime[AES_BLOCK_SIZE];
-    ALIGN32 byte EKY0[AES_BLOCK_SIZE];
+    ALIGN16 byte counter[AES_BLOCK_SIZE];
+    ALIGN16 byte scratch[AES_BLOCK_SIZE];
+    ALIGN16 byte Tprime[AES_BLOCK_SIZE];
+    ALIGN16 byte EKY0[AES_BLOCK_SIZE];
     sword32 res;
 
     if (ivSz == GCM_NONCE_MID_SZ) {
@@ -7165,7 +7393,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     /* ConstantCompare returns the cumulative bitwise or of the bitwise xor of
      * the pairwise bytes in the strings.
      */
-    res = ConstantCompare(authTag, Tprime, authTagSz);
+    res = ConstantCompare(authTag, Tprime, (int)authTagSz);
     /* convert positive retval from ConstantCompare() to all-1s word, in
      * constant time.
      */
@@ -7199,7 +7427,10 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (aes->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
         int crypto_cb_ret =
             wc_CryptoCb_AesGcmDecrypt(aes, out, in, sz, iv, ivSz,
                                       authTag, authTagSz, authIn, authInSz);
@@ -7264,7 +7495,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (IS_INTEL_AVX2(intel_flags)) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
         AES_GCM_decrypt_avx2(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
-                                 authTagSz, (byte*)aes->key, aes->rounds, &res);
+                            authTagSz, (byte*)aes->key, (int)aes->rounds, &res);
         RESTORE_VECTOR_REGISTERS();
         if (res == 0)
             return AES_GCM_AUTH_E;
@@ -7276,7 +7507,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (IS_INTEL_AVX1(intel_flags)) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
         AES_GCM_decrypt_avx1(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
-                                 authTagSz, (byte*)aes->key, aes->rounds, &res);
+                            authTagSz, (byte*)aes->key, (int)aes->rounds, &res);
         RESTORE_VECTOR_REGISTERS();
         if (res == 0)
             return AES_GCM_AUTH_E;
@@ -7286,7 +7517,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     #endif
     if (haveAESNI) {
         AES_GCM_decrypt(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
-                                 authTagSz, (byte*)aes->key, aes->rounds, &res);
+                            authTagSz, (byte*)aes->key, (int)aes->rounds, &res);
         if (res == 0)
             return AES_GCM_AUTH_E;
         return 0;
@@ -7548,7 +7779,7 @@ static WARN_UNUSED_RESULT int AesGcmInit_aesni(
 #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags)) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
-        AES_GCM_init_avx2((byte*)aes->key, aes->rounds, iv, ivSz, aes->H,
+        AES_GCM_init_avx2((byte*)aes->key, (int)aes->rounds, iv, ivSz, aes->H,
                           AES_COUNTER(aes), AES_INITCTR(aes));
         RESTORE_VECTOR_REGISTERS();
     }
@@ -7557,7 +7788,7 @@ static WARN_UNUSED_RESULT int AesGcmInit_aesni(
 #ifdef HAVE_INTEL_AVX1
     if (IS_INTEL_AVX1(intel_flags)) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
-        AES_GCM_init_avx1((byte*)aes->key, aes->rounds, iv, ivSz, aes->H,
+        AES_GCM_init_avx1((byte*)aes->key, (int)aes->rounds, iv, ivSz, aes->H,
                           AES_COUNTER(aes), AES_INITCTR(aes));
         RESTORE_VECTOR_REGISTERS();
     }
@@ -7565,7 +7796,7 @@ static WARN_UNUSED_RESULT int AesGcmInit_aesni(
 #endif
     {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
-        AES_GCM_init_aesni((byte*)aes->key, aes->rounds, iv, ivSz, aes->H,
+        AES_GCM_init_aesni((byte*)aes->key, (int)aes->rounds, iv, ivSz, aes->H,
                            AES_COUNTER(aes), AES_INITCTR(aes));
         RESTORE_VECTOR_REGISTERS();
     }
@@ -7597,7 +7828,7 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_aesni(
             /* Calculate amount we can use - fill up the block. */
             byte sz = AES_BLOCK_SIZE - aes->aOver;
             if (sz > aSz) {
-                sz = aSz;
+                sz = (byte)aSz;
             }
             /* Copy extra into last GHASH block array and update count. */
             XMEMCPY(AES_LASTGBLOCK(aes) + aes->aOver, a, sz);
@@ -7658,7 +7889,7 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_aesni(
         }
         if (partial != 0) {
             /* Cache the partial block. */
-            XMEMCPY(AES_LASTGBLOCK(aes), a, partial);
+            XMEMCPY(AES_LASTGBLOCK(aes), a, (size_t)partial);
             aes->aOver = (byte)partial;
         }
     }
@@ -7723,7 +7954,7 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_aesni(
             /* Calculate amount we can use - fill up the block. */
             byte sz = AES_BLOCK_SIZE - aes->cOver;
             if (sz > cSz) {
-                sz = cSz;
+                sz = (byte)cSz;
             }
             /* Encrypt some of the plaintext. */
             xorbuf(AES_LASTGBLOCK(aes) + aes->cOver, p, sz);
@@ -7766,23 +7997,23 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_aesni(
             /* Encrypt and GHASH full blocks now. */
         #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_AVX2(intel_flags)) {
-                AES_GCM_encrypt_update_avx2((byte*)aes->key, aes->rounds, c, p,
-                    blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                AES_GCM_encrypt_update_avx2((byte*)aes->key, (int)aes->rounds,
+                    c, p, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
                     AES_COUNTER(aes));
             }
             else
         #endif
         #ifdef HAVE_INTEL_AVX1
             if (IS_INTEL_AVX1(intel_flags)) {
-                AES_GCM_encrypt_update_avx1((byte*)aes->key, aes->rounds, c, p,
-                    blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                AES_GCM_encrypt_update_avx1((byte*)aes->key, (int)aes->rounds,
+                    c, p, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
                     AES_COUNTER(aes));
             }
             else
         #endif
             {
-                AES_GCM_encrypt_update_aesni((byte*)aes->key, aes->rounds, c, p,
-                    blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                AES_GCM_encrypt_update_aesni((byte*)aes->key, (int)aes->rounds,
+                    c, p, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
                     AES_COUNTER(aes));
             }
             /* Skip over to end of blocks. */
@@ -7794,27 +8025,27 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_aesni(
             XMEMSET(AES_LASTGBLOCK(aes), 0, AES_BLOCK_SIZE);
         #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_AVX2(intel_flags)) {
-                AES_GCM_encrypt_block_avx2((byte*)aes->key, aes->rounds,
+                AES_GCM_encrypt_block_avx2((byte*)aes->key, (int)aes->rounds,
                     AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
             }
             else
         #endif
         #ifdef HAVE_INTEL_AVX1
             if (IS_INTEL_AVX1(intel_flags)) {
-                AES_GCM_encrypt_block_avx1((byte*)aes->key, aes->rounds,
+                AES_GCM_encrypt_block_avx1((byte*)aes->key, (int)aes->rounds,
                     AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
             }
             else
         #endif
             {
-                AES_GCM_encrypt_block_aesni((byte*)aes->key, aes->rounds,
+                AES_GCM_encrypt_block_aesni((byte*)aes->key, (int)aes->rounds,
                     AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
             }
             /* XOR the remaining plaintext to calculate cipher text.
              * Keep cipher text for GHASH of last partial block.
              */
-            xorbuf(AES_LASTGBLOCK(aes), p, partial);
-            XMEMCPY(c, AES_LASTGBLOCK(aes), partial);
+            xorbuf(AES_LASTGBLOCK(aes), p, (word32)partial);
+            XMEMCPY(c, AES_LASTGBLOCK(aes), (size_t)partial);
             /* Update count of the block used. */
             aes->cOver = (byte)partial;
         }
@@ -7951,7 +8182,7 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_aesni(
             /* Calculate amount we can use - fill up the block. */
             byte sz = AES_BLOCK_SIZE - aes->cOver;
             if (sz > cSz) {
-                sz = cSz;
+                sz = (byte)cSz;
             }
             /* Keep a copy of the cipher text for GHASH. */
             XMEMCPY(AES_LASTBLOCK(aes) + aes->cOver, c, sz);
@@ -7996,23 +8227,23 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_aesni(
             /* Decrypt and GHASH full blocks now. */
         #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_AVX2(intel_flags)) {
-                AES_GCM_decrypt_update_avx2((byte*)aes->key, aes->rounds, p, c,
-                    blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                AES_GCM_decrypt_update_avx2((byte*)aes->key, (int)aes->rounds,
+                    p, c, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
                     AES_COUNTER(aes));
             }
             else
         #endif
         #ifdef HAVE_INTEL_AVX1
             if (IS_INTEL_AVX1(intel_flags)) {
-                AES_GCM_decrypt_update_avx1((byte*)aes->key, aes->rounds, p, c,
-                    blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                AES_GCM_decrypt_update_avx1((byte*)aes->key, (int)aes->rounds,
+                    p, c, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
                     AES_COUNTER(aes));
             }
             else
         #endif
             {
-                AES_GCM_decrypt_update_aesni((byte*)aes->key, aes->rounds, p, c,
-                    blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                AES_GCM_decrypt_update_aesni((byte*)aes->key, (int)aes->rounds,
+                    p, c, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
                     AES_COUNTER(aes));
             }
             /* Skip over to end of blocks. */
@@ -8024,27 +8255,27 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_aesni(
             XMEMSET(AES_LASTGBLOCK(aes), 0, AES_BLOCK_SIZE);
         #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_AVX2(intel_flags)) {
-                AES_GCM_encrypt_block_avx2((byte*)aes->key, aes->rounds,
+                AES_GCM_encrypt_block_avx2((byte*)aes->key, (int)aes->rounds,
                     AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
             }
             else
         #endif
         #ifdef HAVE_INTEL_AVX1
             if (IS_INTEL_AVX1(intel_flags)) {
-                AES_GCM_encrypt_block_avx1((byte*)aes->key, aes->rounds,
+                AES_GCM_encrypt_block_avx1((byte*)aes->key, (int)aes->rounds,
                     AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
             }
             else
         #endif
             {
-                AES_GCM_encrypt_block_aesni((byte*)aes->key, aes->rounds,
+                AES_GCM_encrypt_block_aesni((byte*)aes->key, (int)aes->rounds,
                     AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
             }
             /* Keep cipher text for GHASH of last partial block. */
-            XMEMCPY(AES_LASTBLOCK(aes), c, partial);
+            XMEMCPY(AES_LASTBLOCK(aes), c, (size_t)partial);
             /* XOR the remaining cipher text to calculate plaintext. */
-            xorbuf(AES_LASTGBLOCK(aes), c, partial);
-            XMEMCPY(p, AES_LASTGBLOCK(aes), partial);
+            xorbuf(AES_LASTGBLOCK(aes), c, (word32)partial);
+            XMEMCPY(p, AES_LASTGBLOCK(aes), (size_t)partial);
             /* Update count of the block used. */
             aes->cOver = (byte)partial;
         }
@@ -8175,7 +8406,7 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     if (ret == 0) {
         /* Set the IV passed in if it is smaller than a block. */
         if ((iv != NULL) && (ivSz <= AES_BLOCK_SIZE)) {
-            XMEMCPY((byte*)aes->reg, iv, ivSz);
+            XMEMMOVE((byte*)aes->reg, iv, ivSz);
             aes->nonceSz = ivSz;
         }
         /* No IV passed in, check for cached IV. */
@@ -8537,7 +8768,7 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
             ret = AesGcmFinal_C(aes, calcTag, authTagSz);
             if (ret == 0) {
                 /* Check calculated tag matches the one passed in. */
-                if (ConstantCompare(authTag, calcTag, authTagSz) != 0) {
+                if (ConstantCompare(authTag, calcTag, (int)authTagSz) != 0) {
                     ret = AES_GCM_AUTH_E;
                 }
             }
@@ -8571,7 +8802,7 @@ int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz)
 {
     int ret = 0;
 
-    if (aes == NULL || iv == NULL || !CheckAesGcmIvSize(ivSz)) {
+    if (aes == NULL || iv == NULL || !CheckAesGcmIvSize((int)ivSz)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -8599,7 +8830,7 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
 {
     int ret = 0;
 
-    if (aes == NULL || rng == NULL || !CheckAesGcmIvSize(ivSz) ||
+    if (aes == NULL || rng == NULL || !CheckAesGcmIvSize((int)ivSz) ||
         (ivFixed == NULL && ivFixedSz != 0) ||
         (ivFixed != NULL && ivFixedSz != AES_IV_FIXED_SZ)) {
 
@@ -8970,22 +9201,22 @@ static WARN_UNUSED_RESULT int roll_auth(
     /* encode the length in */
     if (inSz <= 0xFEFF) {
         authLenSz = 2;
-        out[0] ^= ((inSz & 0xFF00) >> 8);
-        out[1] ^=  (inSz & 0x00FF);
+        out[0] ^= (byte)(inSz >> 8);
+        out[1] ^= (byte)inSz;
     }
-    else if (inSz <= 0xFFFFFFFF) {
+    else {
         authLenSz = 6;
-        out[0] ^= 0xFF; out[1] ^= 0xFE;
-        out[2] ^= ((inSz & 0xFF000000) >> 24);
-        out[3] ^= ((inSz & 0x00FF0000) >> 16);
-        out[4] ^= ((inSz & 0x0000FF00) >>  8);
-        out[5] ^=  (inSz & 0x000000FF);
+        out[0] ^= 0xFF;
+        out[1] ^= 0xFE;
+        out[2] ^= (byte)(inSz >> 24);
+        out[3] ^= (byte)(inSz >> 16);
+        out[4] ^= (byte)(inSz >>  8);
+        out[5] ^= (byte)inSz;
     }
     /* Note, the protocol handles auth data up to 2^64, but we are
      * using 32-bit sizes right now, so the bigger data isn't handled
-     * else if (inSz <= 0xFFFFFFFFFFFFFFFF) {} */
-    else
-        return BAD_LENGTH_E;
+     * else {}
+     */
 
     /* start fill out the rest of the first block */
     remainder = AES_BLOCK_SIZE - authLenSz;
@@ -9086,12 +9317,15 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
 
     /* sanity check on tag size */
-    if (wc_AesCcmCheckTagSize(authTagSz) != 0) {
+    if (wc_AesCcmCheckTagSize((int)authTagSz) != 0) {
         return BAD_FUNC_ARG;
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (aes->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
         int crypto_cb_ret =
             wc_CryptoCb_AesCcmEncrypt(aes, out, in, inSz, nonce, nonceSz,
                                       authTag, authTagSz, authIn, authInSz);
@@ -9104,13 +9338,13 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     XMEMSET(A, 0, sizeof(A));
     XMEMCPY(B+1, nonce, nonceSz);
     lenSz = AES_BLOCK_SIZE - 1 - (byte)nonceSz;
-    B[0] = (authInSz > 0 ? 64 : 0)
-         + (8 * (((byte)authTagSz - 2) / 2))
-         + (lenSz - 1);
+    B[0] = (byte)((authInSz > 0 ? 64 : 0)
+                  + (8 * (((byte)authTagSz - 2) / 2))
+                  + (lenSz - 1));
     for (i = 0; i < lenSz; i++) {
         if (mask && i >= wordSz)
             mask = 0x00;
-        B[AES_BLOCK_SIZE - 1 - i] = (inSz >> ((8 * i) & mask)) & mask;
+        B[AES_BLOCK_SIZE - 1 - i] = (byte)((inSz >> ((8 * i) & mask)) & mask);
     }
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -9178,7 +9412,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
             AesCcmCtrIncSet4(B, lenSz);
 
             AES_ECB_encrypt(B, A, AES_BLOCK_SIZE * 4, (byte*)aes->key,
-                            aes->rounds);
+                            (int)aes->rounds);
 
             xorbuf(A, in, AES_BLOCK_SIZE * 4);
             XMEMCPY(out, A, AES_BLOCK_SIZE * 4);
@@ -9265,12 +9499,15 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
 
     /* sanity check on tag size */
-    if (wc_AesCcmCheckTagSize(authTagSz) != 0) {
+    if (wc_AesCcmCheckTagSize((int)authTagSz) != 0) {
         return BAD_FUNC_ARG;
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (aes->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
         int crypto_cb_ret =
             wc_CryptoCb_AesCcmDecrypt(aes, out, in, inSz, nonce, nonceSz,
             authTag, authTagSz, authIn, authInSz);
@@ -9303,7 +9540,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
             AesCcmCtrIncSet4(B, lenSz);
 
             AES_ECB_encrypt(B, A, AES_BLOCK_SIZE * 4, (byte*)aes->key,
-                            aes->rounds);
+                            (int)aes->rounds);
 
             xorbuf(A, in, AES_BLOCK_SIZE * 4);
             XMEMCPY(o, A, AES_BLOCK_SIZE * 4);
@@ -9367,13 +9604,13 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     o = out;
     oSz = inSz;
 
-    B[0] = (authInSz > 0 ? 64 : 0)
-         + (8 * (((byte)authTagSz - 2) / 2))
-         + (lenSz - 1);
+    B[0] = (byte)((authInSz > 0 ? 64 : 0)
+                  + (8 * (((byte)authTagSz - 2) / 2))
+                  + (lenSz - 1));
     for (i = 0; i < lenSz; i++) {
         if (mask && i >= wordSz)
             mask = 0x00;
-        B[AES_BLOCK_SIZE - 1 - i] = (inSz >> ((8 * i) & mask)) & mask;
+        B[AES_BLOCK_SIZE - 1 - i] = (byte)((inSz >> ((8 * i) & mask)) & mask);
     }
 
     ret = wc_AesEncrypt(aes, B, A);
@@ -9427,7 +9664,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
     xorbuf(A, B, authTagSz);
 
-    if (ConstantCompare(A, authTag, authTagSz) != 0) {
+    if (ConstantCompare(A, authTag, (int)authTagSz) != 0) {
         /* If the authTag check fails, don't keep the decrypted data.
          * Unfortunately, you need the decrypted data to calculate the
          * check value. */
@@ -9608,7 +9845,7 @@ int  wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap, int devId)
     if (ret == 0)
         ret = wc_AesInit(aes, heap, devId);
     if (ret == 0) {
-        XMEMCPY(aes->id, id, len);
+        XMEMCPY(aes->id, id, (size_t)len);
         aes->idLen = len;
         aes->labelLen = 0;
     }
@@ -9619,12 +9856,12 @@ int  wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap, int devId)
 int wc_AesInit_Label(Aes* aes, const char* label, void* heap, int devId)
 {
     int ret = 0;
-    int labelLen = 0;
+    size_t labelLen = 0;
 
     if (aes == NULL || label == NULL)
         ret = BAD_FUNC_ARG;
     if (ret == 0) {
-        labelLen = (int)XSTRLEN(label);
+        labelLen = XSTRLEN(label);
         if (labelLen == 0 || labelLen > AES_MAX_LABEL_LEN)
             ret = BUFFER_E;
     }
@@ -9633,7 +9870,7 @@ int wc_AesInit_Label(Aes* aes, const char* label, void* heap, int devId)
         ret = wc_AesInit(aes, heap, devId);
     if (ret == 0) {
         XMEMCPY(aes->label, label, labelLen);
-        aes->labelLen = labelLen;
+        aes->labelLen = (int)labelLen;
         aes->idLen = 0;
     }
 
@@ -9789,7 +10026,10 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
     word32 blocks = sz / AES_BLOCK_SIZE;
 
 #ifdef WOLF_CRYPTO_CB
-    if (aes->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
         int ret = wc_CryptoCb_AesEcbEncrypt(aes, out, in, sz);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
@@ -9803,7 +10043,7 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
 #ifdef WOLFSSL_AESNI
     if (haveAESNI && aes->use_aesni) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
-        AES_ECB_encrypt(in, out, sz, (byte*)aes->key, aes->rounds);
+        AES_ECB_encrypt(in, out, sz, (byte*)aes->key, (int)aes->rounds);
         RESTORE_VECTOR_REGISTERS();
         blocks = 0;
     }
@@ -9825,7 +10065,10 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
     word32 blocks = sz / AES_BLOCK_SIZE;
 
 #ifdef WOLF_CRYPTO_CB
-    if (aes->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
         int ret = wc_CryptoCb_AesEcbDecrypt(aes, out, in, sz);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
@@ -9839,7 +10082,7 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
 #ifdef WOLFSSL_AESNI
     if (haveAESNI && aes->use_aesni) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
-        AES_ECB_decrypt(in, out, sz, (byte*)aes->key, aes->rounds);
+        AES_ECB_decrypt(in, out, sz, (byte*)aes->key, (int)aes->rounds);
         RESTORE_VECTOR_REGISTERS();
         blocks = 0;
     }
@@ -9902,34 +10145,25 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackEncrypt(
     Aes* aes, byte* out, const byte* in, word32 sz, byte mode)
 {
     byte*  tmp = NULL;
-#ifdef WOLFSSL_AES_CFB
-    byte*  reg = NULL;
-#endif
     int ret = 0;
+    word32 processed;
 
     if (aes == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
     }
 
+    /* consume any unused bytes left in aes->tmp */
+    processed = min(aes->left, sz);
+    xorbufout(out, in, (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left, processed);
 #ifdef WOLFSSL_AES_CFB
-    if (aes->left && sz) {
-        reg = (byte*)aes->reg + AES_BLOCK_SIZE - aes->left;
+    if (mode == AES_CFB_MODE) {
+        XMEMCPY((byte*)aes->reg + AES_BLOCK_SIZE - aes->left, out, processed);
     }
 #endif
-
-    /* consume any unused bytes left in aes->tmp */
-    tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
-    while (aes->left && sz) {
-        *(out) = *(in++) ^ *(tmp++);
-    #ifdef WOLFSSL_AES_CFB
-        if (mode == AES_CFB_MODE) {
-            *(reg++) = *out;
-        }
-    #endif
-        out++;
-        aes->left--;
-        sz--;
-    }
+    aes->left -= processed;
+    out += processed;
+    in += processed;
+    sz -= processed;
 
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
@@ -9968,20 +10202,14 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackEncrypt(
             XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
         }
     #endif
-    #ifdef WOLFSSL_AES_CFB
-        reg = (byte*)aes->reg;
-    #endif
 
-        while (sz--) {
-            *(out) = *(in++) ^ *(tmp++);
-        #ifdef WOLFSSL_AES_CFB
-            if (mode == AES_CFB_MODE) {
-                *(reg++) = *out;
-            }
-        #endif
-            out++;
-            aes->left--;
+        xorbufout(out, in, tmp, sz);
+    #ifdef WOLFSSL_AES_CFB
+        if (mode == AES_CFB_MODE) {
+            XMEMCPY(aes->reg, out, sz);
         }
+    #endif
+        aes->left -= sz;
     }
     RESTORE_VECTOR_REGISTERS();
 
@@ -10004,8 +10232,8 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackEncrypt(
 static WARN_UNUSED_RESULT int wc_AesFeedbackDecrypt(
     Aes* aes, byte* out, const byte* in, word32 sz, byte mode)
 {
-    byte*  tmp;
     int ret = 0;
+    word32 processed;
 
     if (aes == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
@@ -10014,18 +10242,18 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackDecrypt(
     #ifdef WOLFSSL_AES_CFB
     /* check if more input needs copied over to aes->reg */
     if (aes->left && sz && mode == AES_CFB_MODE) {
-        int size = min(aes->left, sz);
+        word32 size = min(aes->left, sz);
         XMEMCPY((byte*)aes->reg + AES_BLOCK_SIZE - aes->left, in, size);
     }
     #endif
 
     /* consume any unused bytes left in aes->tmp */
-    tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
-    while (aes->left && sz) {
-        *(out++) = *(in++) ^ *(tmp++);
-        aes->left--;
-        sz--;
-    }
+    processed = min(aes->left, sz);
+    xorbufout(out, in, (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left, processed);
+    aes->left -= processed;
+    out += processed;
+    in += processed;
+    sz -= processed;
 
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
@@ -10068,13 +10296,8 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackDecrypt(
         }
     #endif
 
-        aes->left = AES_BLOCK_SIZE;
-        tmp = (byte*)aes->tmp;
-
-        while (sz--) {
-            *(out++) = *(in++) ^ *(tmp++);
-            aes->left--;
-        }
+        aes->left = AES_BLOCK_SIZE - sz;
+        xorbufout(out, in, aes->tmp, sz);
     }
     RESTORE_VECTOR_REGISTERS();
 
@@ -10137,7 +10360,7 @@ static void shiftLeftArray(byte* ary, byte shift)
         for (i = 0; i < AES_BLOCK_SIZE - 1; i++) {
             byte carry = ary[i+1] & (0XFF << (WOLFSSL_BIT_SIZE - shift));
             carry >>= (WOLFSSL_BIT_SIZE - shift);
-            ary[i] = (ary[i] << shift) + carry;
+            ary[i] = (byte)((ary[i] << shift) + carry);
         }
         ary[i] = ary[i] << shift;
     }
@@ -10382,12 +10605,12 @@ int wc_AesOfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 /* Initialize key wrap counter with value */
 static WC_INLINE void InitKeyWrapCounter(byte* inOutCtr, word32 value)
 {
-    int i;
+    word32 i;
     word32 bytes;
 
     bytes = sizeof(word32);
-    for (i = 0; i < (int)sizeof(word32); i++) {
-        inOutCtr[i+sizeof(word32)] = (value >> ((bytes - 1) * 8)) & 0xFF;
+    for (i = 0; i < sizeof(word32); i++) {
+        inOutCtr[i+sizeof(word32)] = (byte)(value >> ((bytes - 1) * 8));
         bytes--;
     }
 }
@@ -10477,7 +10700,7 @@ int wc_AesKeyWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
     /* C[0] = A */
     XMEMCPY(out, tmp, KEYWRAP_BLOCK_SIZE);
 
-    return inSz + KEYWRAP_BLOCK_SIZE;
+    return (int)(inSz + KEYWRAP_BLOCK_SIZE);
 }
 
 /* perform AES key wrap (RFC3394), return out sz on success, negative on err */
@@ -10593,7 +10816,7 @@ int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
     if (XMEMCMP(tmp, expIv, KEYWRAP_BLOCK_SIZE) != 0)
         return BAD_KEYWRAP_IV_E;
 
-    return inSz - KEYWRAP_BLOCK_SIZE;
+    return (int)(inSz - KEYWRAP_BLOCK_SIZE);
 }
 
 int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
@@ -10791,7 +11014,7 @@ static WARN_UNUSED_RESULT int _AesXtsHelper(
             byte tmpC;
 
             tmpC   = (pt[j] >> 7) & 0x01;
-            pt[j+AES_BLOCK_SIZE] = ((pt[j] << 1) + carry) & 0xFF;
+            pt[j+AES_BLOCK_SIZE] = (byte)((pt[j] << 1) + carry);
             carry  = tmpC;
         }
         if (carry) {
@@ -10894,7 +11117,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                 byte tmpC;
 
                 tmpC   = (tmp[j] >> 7) & 0x01;
-                tmp[j] = ((tmp[j] << 1) + carry) & 0xFF;
+                tmp[j] = (byte)((tmp[j] << 1) + carry);
                 carry  = tmpC;
             }
             if (carry) {
@@ -11031,7 +11254,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                 byte tmpC;
 
                 tmpC   = (tmp[j] >> 7) & 0x01;
-                tmp[j] = ((tmp[j] << 1) + carry) & 0xFF;
+                tmp[j] = (byte)((tmp[j] << 1) + carry);
                 carry  = tmpC;
             }
             if (carry) {
@@ -11055,7 +11278,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                 byte tmpC;
 
                 tmpC   = (tmp[j] >> 7) & 0x01;
-                tmp2[j] = ((tmp[j] << 1) + carry) & 0xFF;
+                tmp2[j] = (byte)((tmp[j] << 1) + carry);
                 carry  = tmpC;
             }
             if (carry) {
