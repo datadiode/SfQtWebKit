@@ -273,19 +273,19 @@ extern "C" {
     #define OPENSSL_COMPATIBLE_DEFAULTS
 
     /* Openssl compatibility application specific */
-    #define WOLFSSL_LIBWEBSOCKETS
-    #define WOLFSSL_OPENSSH
+    //#define WOLFSSL_LIBWEBSOCKETS
+    //#define WOLFSSL_OPENSSH
     #define WOLFSSL_QT
-    #define FORTRESS
-    #define HAVE_WEBSERVER
-    #define HAVE_LIGHTY
-    #define WOLFSSL_NGINX
-    #define WOLFSSL_HAPROXY
-    #define HAVE_STUNNEL
-    #define WOLFSSL_ASIO
-    #define ASIO_USE_WOLFSSL
-    #define BOOST_ASIO_USE_WOLFSSL
-    #define WOLFSSL_OPENVPN
+    //#define FORTRESS
+    //#define HAVE_WEBSERVER
+    //#define HAVE_LIGHTY
+    //#define WOLFSSL_NGINX
+    //#define WOLFSSL_HAPROXY
+    //#define HAVE_STUNNEL
+    //#define WOLFSSL_ASIO
+    //#define ASIO_USE_WOLFSSL
+    //#define BOOST_ASIO_USE_WOLFSSL
+    //#define WOLFSSL_OPENVPN
 
     #define NO_WOLFSSL_STUB
 #endif
@@ -368,7 +368,6 @@ extern "C" {
 
 #define WOLFSSL_HAVE_ERROR_QUEUE
 
-#define OPENSSL_VERSION_NUMBER 0x10101000L
 #define NO_WOLFSSL_DIR
 
 #if defined(_MSC_VER) && (_MSC_VER < 1900)
