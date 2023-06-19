@@ -3119,6 +3119,9 @@ bool QWebPage::extension(Extension extension, const ExtensionOption *option, Ext
             errorCode = tr("QtNetwork Error %0").arg(errorOption->error);
             break;
         case QWebPage::WebKit:
+            // Leave handling of WebKitErrorFrameLoadInterruptedByPolicyChange to the application
+            if (errorOption->error == 102)
+                return false;
             errorCode = tr("WebKit Error %0").arg(errorOption->error);
             break;
         }
