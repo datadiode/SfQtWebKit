@@ -28,8 +28,6 @@
 #ifndef WTF_Platform_h
 #define WTF_Platform_h
 
-#define ENABLE_JIT 1
-
 /* Include compiler specific macros */
 #include <wtf/Compiler.h>
 
@@ -787,9 +785,9 @@
 
 /* The JIT is enabled by default on all x86, x86-64, ARM & MIPS platforms. */
 #if !defined(ENABLE_JIT) \
-    && (CPU(X86) || CPU(X86_64) || CPU(ARM) || CPU(MIPS)) \
+    && (CPU(X86) || CPU(X86_64) || CPU(MIPS)) \
     && (OS(DARWIN) || !COMPILER(GCC) || GCC_VERSION_AT_LEAST(4, 1, 0)) \
-    && !OS(WINCE) \
+    && OS(WINCE) \
     && !(OS(QNX) && !PLATFORM(QT)) /* We use JIT in QNX Qt */
 #define ENABLE_JIT 1
 #endif

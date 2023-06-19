@@ -41,7 +41,7 @@
 
 namespace WTF {
 
-static const size_t ramSizeGuess = 128 * MB;
+static const size_t ramSizeGuess = 512 * MB;
 
 static size_t computeRAMSize()
 {
@@ -63,7 +63,7 @@ static size_t computeRAMSize()
     if (pages == -1 || pageSize == -1)
         return ramSizeGuess;
     return pages * pageSize;
-#elif OS(WINCE)
+#elif OS(WINCE) || (OS(WINDOWS) && CPU(X86))
     MEMORYSTATUS status;
     status.dwLength = sizeof(status);
     GlobalMemoryStatus(&status);
