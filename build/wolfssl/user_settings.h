@@ -84,7 +84,7 @@ extern "C" {
 #define HAVE_SUPPORTED_CURVES
 #define HAVE_ONE_TIME_AUTH
 #define HAVE_SNI
-#define HAVE_ALPN
+//#define HAVE_ALPN
 #define HAVE_MAX_FRAGMENT
 #define HAVE_TRUNCATED_HMAC
 #define HAVE_SESSION_TICKET
