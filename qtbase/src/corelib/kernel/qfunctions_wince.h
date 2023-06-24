@@ -39,6 +39,10 @@
 #ifdef Q_OS_WINCE
 #include <stdio.h>
 #include <stdlib.h>
+#include <winsock2.h>
+// Unlike winsock.h, winsock2.h misses these defines...
+#define WSASetLastError SetLastError
+#define WSAGetLastError GetLastError
 #include <windows.h>
 #include <winuser.h>
 #include <winbase.h>
@@ -53,7 +57,6 @@
 #undef min
 #undef max
 #endif
-#include <winsock.h>
 #include <ceconfig.h>
 
 // The standard SDK misses this define...
