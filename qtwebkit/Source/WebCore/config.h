@@ -18,6 +18,7 @@
  * Boston, MA 02110-1301, USA.
  *
  */
+#pragma once
 
 #if defined(HAVE_CONFIG_H) && HAVE_CONFIG_H
 #ifdef BUILDING_WITH_CMAKE

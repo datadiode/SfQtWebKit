@@ -1,0 +1,47 @@
+version: 1.0.{build}
+image:
+- Visual Studio 2013
+- Visual Studio 2017
+
+platform:
+- win32
+- wince80colibri-armv7
+- wince80GSeries
+
+matrix:
+  exclude:
+    - image: Visual Studio 2013
+      platform: win32
+    - image: Visual Studio 2017
+      platform: wince80colibri-armv7
+    - image: Visual Studio 2017
+      platform: wince80GSeries
+
+configuration:
+- module-qtbase-make_first module-qtmultimedia-make_first module-qtlocation-make_first module-qtsensors-make_first module-qtimageformats-make_first
+- sub-Source-WTF-WTF-pro-make_first-ordered sub-Source-JavaScriptCore-JavaScriptCore-pro-make_first-ordered sub-Source-ThirdParty-leveldb-leveldb-pro-make_first-ordered sub-Source-WebCore-WebCore-pro-make_first-ordered sub-Source-WebKit-WebKit1-pro-make_first-ordered sub-Source-QtWebKit-pro-make_first-ordered sub-Tools-Tools-pro-make_first-ordered
+
+environment:
+  BearerToken:
+    secure: fOl+vkp+AFzHR8mvZmTTXWfIsdtlcg5yLhI6MP1Nrp4=
+
+clone_script:
+- git clone -q --depth 1 --branch=%APPVEYOR_REPO_BRANCH% https://github.com/%APPVEYOR_REPO_NAME%.git %APPVEYOR_BUILD_FOLDER%
+- git submodule init
+- git submodule update
+- git checkout -qf %APPVEYOR_REPO_COMMIT%
+- C:/msys64/usr/bin/wget.exe -nv "https://github.com/manesec/Backup-sfk/raw/main/sfk198.exe"
+- C:/msys64/usr/bin/wget.exe -O browser/rcedit-x86.exe -nv "https://github.com/electron/rcedit/releases/download/v1.1.1/rcedit-x86.exe"
+- sfk198.exe sel -withdirs . +touch -date 20130412063015 -yes > nul
+- powershell.exe .\download_snapshot.ps1
+- 7z.exe x -y *.7z * & exit 0
+- 7z.exe x -y -obrowser browser\*.7z * & exit 0
+- if not "%PLATFORM%" == "win32" call install_wec2013_prerequisites.bat
+- del *.7z *.zip *.msi
+
+build_script:
+- call build\%PLATFORM%.bat
+
+artifacts:
+- path: '*.7z'
+- path: 'browser\*.7z'
