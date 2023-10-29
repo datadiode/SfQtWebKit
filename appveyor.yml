@@ -30,7 +30,7 @@ clone_script:
 - git submodule init
 - git submodule update
 - git checkout -qf %APPVEYOR_REPO_COMMIT%
-- C:/msys64/usr/bin/wget.exe -nv "https://github.com/manesec/Backup-sfk/raw/main/sfk198.exe"
+- C:/msys64/usr/bin/wget.exe -nv "https://github.com/manesec/Backup-sfk/raw/d26b3c2/sfk198.exe"
 - C:/msys64/usr/bin/wget.exe -O browser/rcedit-x86.exe -nv "https://github.com/electron/rcedit/releases/download/v1.1.1/rcedit-x86.exe"
 - sfk198.exe sel -withdirs . +touch -date 20130412063015 -yes > nul
 - powershell.exe .\download_snapshot.ps1

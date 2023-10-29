@@ -7,14 +7,14 @@ SET QMAKESPEC=%~n0-msvc2012
 SET QT_HOST_PATH=C:\qt\5.5\msvc2013
 SET QT_TOOLS_PATH=C:\qt\Tools\QtCreator\bin
 
-SET ICU_DIST=%~dp0icu\dist-32
-SET OPENSSL_INC=%~dp0wolfssl;%~dp0wolfssl\wolfssl
-SET OPENSSL_LIB=%~dp0wolfssl\DLL Release\Compact2013_SDK_GSeries
-SET OPENSSL_LIBS=-lwolfssl
-
 CD %~dp0..
 SET QT_SOURCE=%CD%
 SET QT_BUILD=%CD%\%~n0-build
+
+SET ICU_DIST=%QT_SOURCE%\icu4c
+SET OPENSSL_INC=%~dp0wolfssl;%~dp0wolfssl\wolfssl
+SET OPENSSL_LIB=%~dp0wolfssl\DLL Release\Compact2013_SDK_GSeries
+SET OPENSSL_LIBS=-lwolfssl
 
 MKDIR %QT_BUILD%
 CD /D %QT_BUILD%
@@ -42,6 +42,10 @@ xcopy /I /S /R /Y "%CE_SDKDIR_TORADEX%\Inc\GLES2" "egl\Inc\GLES2"
 xcopy /I /T "%CE_SDKDIR%\Lib" "egl\Lib"
 FOR %%X IN (libegl libglesv2) DO lib /def:%~dp0egl\%%X.def /machine:%CE_ARCH% /out:egl\Lib\%CE_ARCH%\retail\%%X.lib
 
+"%QT_SOURCE%\sfk198.exe" sel "%QT_SOURCE%\icu4c\source" *.vcxproj *.sln +replace -text "/Compact2013_SDK_86Duino_80B/Compact2013_SDK_GSeries/" -yes > nul
+msbuild /t:Rebuild "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Win32" /p:Configuration="Release" /p:PlatformToolset="v120"
+msbuild /t:Build "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Compact2013_SDK_GSeries" /p:Configuration="Release"
+
 msbuild /t:Rebuild "%~dp0wolfssl\wolfssl64.sln" /p:Platform="Compact2013_SDK_GSeries" /p:Configuration="DLL Release"
 
 SETLOCAL
@@ -58,7 +62,7 @@ SET "LIB=%CE_SDKDIR%\crt\Lib\%CE_ARCH:~0,3%;%CE_SDKDIR%\Lib\%CE_ARCH%\retail;%QT
 "%QT_TOOLS_PATH%\jom.exe" /C %CONFIGURATION%
 "%QT_TOOLS_PATH%\jom.exe" /C module-qtwebkit-qmake_all
 CD %QT_SOURCE%
-7z.exe a -mx9 -xr!wolfssl_obj %~n0.7z build\wolfssl\DLL* build\wolfssl\wolfssl build\egl %~n0-build qtbase\include\QtCore\qconfig.h qtbase\include\QtCore\qfeatures.h qtbase\include\QtCore\QtConfig qtwebkit\Source\JavaScriptCore\disassembler\udis86\*.pyc qtwebkit\Source\WebCore\inspector\*.pyc qtwebkit\Source\WebKit2\Scripts\webkit2\*.pyc
+7z.exe a -mx9 -xr!wolfssl_obj %~n0.7z build\wolfssl\DLL* build\wolfssl\wolfssl build\egl %~n0-build qtbase\include\QtCore\qconfig.h qtbase\include\QtCore\qfeatures.h qtbase\include\QtCore\QtConfig qtwebkit\Source\JavaScriptCore\disassembler\udis86\*.pyc qtwebkit\Source\WebCore\inspector\*.pyc qtwebkit\Source\WebKit2\Scripts\webkit2\*.pyc icu4c\bin icu4c\include icu4c\lib
 
 GOTO :eof
 
@@ -124,9 +128,9 @@ COPY "%QT_BUILD%\qtbase\lib\Qt5WebKitWidgets.dll" %CE_ARCH:~0,3%_800
 COPY "%QT_BUILD%\qtbase\lib\Qt5Widgets.dll" %CE_ARCH:~0,3%_800
 COPY "%QT_BUILD%\qtbase\plugins\imageformats\*.dll" %CE_ARCH:~0,3%_800\imageformats
 COPY "%QT_BUILD%\qtbase\plugins\platforms\qwindows.dll" %CE_ARCH:~0,3%_800\platforms
-COPY "%ICU_DIST%\bin\Compact2013_SDK_86Duino_80B\icudt56.dll" %CE_ARCH:~0,3%_800
-COPY "%ICU_DIST%\bin\Compact2013_SDK_86Duino_80B\icuin56.dll" %CE_ARCH:~0,3%_800
-COPY "%ICU_DIST%\bin\Compact2013_SDK_86Duino_80B\icuuc56.dll" %CE_ARCH:~0,3%_800
+COPY "%ICU_DIST%\bin\Compact2013_SDK_GSeries\icudt56.dll" %CE_ARCH:~0,3%_800
+COPY "%ICU_DIST%\bin\Compact2013_SDK_GSeries\icuin56.dll" %CE_ARCH:~0,3%_800
+COPY "%ICU_DIST%\bin\Compact2013_SDK_GSeries\icuuc56.dll" %CE_ARCH:~0,3%_800
 COPY "%OPENSSL_LIB%\wolfssl.dll" %CE_ARCH:~0,3%_800
 FOR /F %%X IN ('git describe') DO 7z.exe a -mx9 browser_%%X.7z ARM_800 X86_800 LICENSE.GPL2 piimake.bat
 

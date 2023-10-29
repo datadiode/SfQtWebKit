@@ -6,15 +6,15 @@ SET QMAKESPEC=%~n0-msvc2015
 
 SET QT_TOOLS_PATH=C:\qt\Tools\QtCreator\bin
 
-SET ICU_DIST=%~dp0icu\dist-32
+CD %~dp0..
+SET QT_SOURCE=%CD%
+SET QT_BUILD=%CD%\%~n0-build
+
+SET ICU_DIST=%QT_SOURCE%\icu4c
 SET OPENSSL_INC=%~dp0wolfssl;%~dp0wolfssl\wolfssl
 SET OPENSSL_LIB=%~dp0wolfssl\DLL Release\Win32
 SET OPENSSL_LIBS=-lwolfssl
 ECHO DXSDK_DIR=%DXSDK_DIR%
-
-CD %~dp0..
-SET QT_SOURCE=%CD%
-SET QT_BUILD=%CD%\%~n0-build
 
 MKDIR %QT_BUILD%
 CD /D %QT_BUILD%
@@ -33,6 +33,8 @@ GOTO %CONFIGURATION%
 :module-qtsensors-make_first
 :module-qtimageformats-make_first
 
+msbuild /t:Rebuild "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Win32" /p:Configuration="Release"
+
 msbuild /t:Rebuild "%~dp0wolfssl\wolfssl64.sln" /p:Platform="Win32" /p:Configuration="DLL Release"
 
 CALL %QT_SOURCE%\configure.bat -rtti -no-harfbuzz -ssl -openssl-linked OPENSSL_LIBS="%OPENSSL_LIBS%" -icu -opengl desktop -opensource -nomake tests -nomake examples -nomake tools -skip translations -skip qtdoc -skip qt3d -skip qtsvg -skip qtxmlpatterns -skip qtenginio -skip qtconnectivity -skip qtserialport -skip qttools -skip qtwebchannel -skip qtwebsockets -skip qtdeclarative -skip qtquick1 -skip qtscript -skip qtwebkit-examples -confirm-license -platform %QMAKESPEC% -release
@@ -40,7 +42,7 @@ CALL %QT_SOURCE%\configure.bat -rtti -no-harfbuzz -ssl -openssl-linked OPENSSL_L
 "%QT_TOOLS_PATH%\jom.exe" /C %CONFIGURATION%
 "%QT_TOOLS_PATH%\jom.exe" /C module-qtwebkit-qmake_all
 CD %QT_SOURCE%
-7z.exe a -mx9 -xr!wolfssl_obj %~n0.7z build\wolfssl\DLL* build\wolfssl\wolfssl build\egl %~n0-build qtbase\include\QtCore\qconfig.h qtbase\include\QtCore\qfeatures.h qtbase\include\QtCore\QtConfig qtwebkit\Source\JavaScriptCore\disassembler\udis86\*.pyc qtwebkit\Source\WebCore\inspector\*.pyc qtwebkit\Source\WebKit2\Scripts\webkit2\*.pyc
+7z.exe a -mx9 -xr!wolfssl_obj %~n0.7z build\wolfssl\DLL* build\wolfssl\wolfssl build\egl %~n0-build qtbase\include\QtCore\qconfig.h qtbase\include\QtCore\qfeatures.h qtbase\include\QtCore\QtConfig qtwebkit\Source\JavaScriptCore\disassembler\udis86\*.pyc qtwebkit\Source\WebCore\inspector\*.pyc qtwebkit\Source\WebKit2\Scripts\webkit2\*.pyc icu4c\bin icu4c\include icu4c\lib
 
 GOTO :eof
 

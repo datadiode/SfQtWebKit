@@ -1,3 +1,6 @@
 [submodule "browser"]
 	path = browser
 	url = https://github.com/datadiode/browser
+[submodule "icu4c"]
+	path = icu4c
+	url = https://github.com/datadiode/icu4c
