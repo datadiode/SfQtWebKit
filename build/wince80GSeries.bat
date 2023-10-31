@@ -43,10 +43,10 @@ xcopy /I /T "%CE_SDKDIR%\Lib" "egl\Lib"
 FOR %%X IN (libegl libglesv2) DO lib /def:%~dp0egl\%%X.def /machine:%CE_ARCH% /out:egl\Lib\%CE_ARCH%\retail\%%X.lib
 
 "%QT_SOURCE%\sfk198.exe" sel "%QT_SOURCE%\icu4c\source" *.vcxproj *.sln +replace -text "/Compact2013_SDK_86Duino_80B/Compact2013_SDK_GSeries/" -yes > nul
-msbuild /t:Rebuild "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Win32" /p:Configuration="Release" /p:PlatformToolset="v120"
-msbuild /t:Build "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Compact2013_SDK_GSeries" /p:Configuration="Release"
+msbuild /v:minimal /t:Rebuild "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Win32" /p:Configuration="Release" /p:PlatformToolset="v120"
+msbuild /v:minimal /t:Build "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Compact2013_SDK_GSeries" /p:Configuration="Release"
 
-msbuild /t:Rebuild "%~dp0wolfssl\wolfssl64.sln" /p:Platform="Compact2013_SDK_GSeries" /p:Configuration="DLL Release"
+msbuild /v:minimal /t:Rebuild "%~dp0wolfssl\wolfssl64.sln" /p:Platform="Compact2013_SDK_GSeries" /p:Configuration="DLL Release"
 
 SETLOCAL
 	SET "INCLUDE=%INCLUDE%;%OPENSSL_INC%;"
@@ -107,7 +107,7 @@ cmake.exe -G "Visual Studio 11 2012" ^
 	-DQT_UIC_EXECUTABLE=%QT_HOST_PATH%\bin\uic.exe ^
 	%QT_SOURCE%\browser
 gsar -s"DLL</RuntimeLibrary>" -r"</RuntimeLibrary>" -o endorphin.vcxproj
-msbuild /t:Rebuild "Endorphin.sln" /p:Platform="Compact2013_SDK_GSeries" /p:Configuration="MinSizeRel"
+msbuild /v:minimal /t:Rebuild "Endorphin.sln" /p:Platform="Compact2013_SDK_GSeries" /p:Configuration="MinSizeRel"
 CD %QT_SOURCE%\browser
 CALL rcupdate.bat "%QT_BUILD%\browser\MinSizeRel\endorphin.exe"
 MKDIR %CE_ARCH:~0,3%_800

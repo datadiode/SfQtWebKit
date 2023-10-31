@@ -33,9 +33,9 @@ GOTO %CONFIGURATION%
 :module-qtsensors-make_first
 :module-qtimageformats-make_first
 
-msbuild /t:Rebuild "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Win32" /p:Configuration="Release"
+msbuild /v:minimal /t:Rebuild "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Win32" /p:Configuration="Release"
 
-msbuild /t:Rebuild "%~dp0wolfssl\wolfssl64.sln" /p:Platform="Win32" /p:Configuration="DLL Release"
+msbuild /v:minimal /t:Rebuild "%~dp0wolfssl\wolfssl64.sln" /p:Platform="Win32" /p:Configuration="DLL Release"
 
 CALL %QT_SOURCE%\configure.bat -rtti -no-harfbuzz -ssl -openssl-linked OPENSSL_LIBS="%OPENSSL_LIBS%" -icu -opengl desktop -opensource -nomake tests -nomake examples -nomake tools -skip translations -skip qtdoc -skip qt3d -skip qtsvg -skip qtxmlpatterns -skip qtenginio -skip qtconnectivity -skip qtserialport -skip qttools -skip qtwebchannel -skip qtwebsockets -skip qtdeclarative -skip qtquick1 -skip qtscript -skip qtwebkit-examples -confirm-license -platform %QMAKESPEC% -release
 
@@ -74,7 +74,7 @@ cmake.exe -G "Visual Studio 15 2017" ^
 	-DQT_UIC_EXECUTABLE=%QT_BUILD%\qtbase\bin\uic.exe ^
 	%QT_SOURCE%\browser
 gsar -s"DLL</RuntimeLibrary>" -r"</RuntimeLibrary>" -o endorphin.vcxproj
-msbuild /t:Rebuild "Endorphin.sln" /p:Platform="Win32" /p:Configuration="Release"
+msbuild /v:minimal /t:Rebuild "Endorphin.sln" /p:Platform="Win32" /p:Configuration="Release"
 CD %QT_SOURCE%\browser
 CALL rcupdate.bat "%QT_BUILD%\browser\Release\endorphin.exe"
 MKDIR WIN32

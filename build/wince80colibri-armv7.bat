@@ -35,10 +35,10 @@ GOTO %CONFIGURATION%
 :module-qtimageformats-make_first
 
 "%QT_SOURCE%\sfk198.exe" sel "%QT_SOURCE%\icu4c\source" *.vcxproj *.sln +replace -text "/WEC2013 Beaglebone SDK/Toradex_CE800/" -yes > nul
-msbuild /t:Rebuild "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Win32" /p:Configuration="Release" /p:PlatformToolset="v120"
-msbuild /t:Build "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Toradex_CE800" /p:Configuration="Release"
+msbuild /v:minimal /t:Rebuild "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Win32" /p:Configuration="Release" /p:PlatformToolset="v120"
+msbuild /v:minimal /t:Build "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Toradex_CE800" /p:Configuration="Release"
 
-msbuild /t:Rebuild "%~dp0wolfssl\wolfssl64.sln" /p:Platform="Toradex_CE800" /p:Configuration="DLL Release"
+msbuild /v:minimal /t:Rebuild "%~dp0wolfssl\wolfssl64.sln" /p:Platform="Toradex_CE800" /p:Configuration="DLL Release"
 
 SETLOCAL
 	SET "INCLUDE=%INCLUDE%;%OPENSSL_INC%;"
@@ -99,7 +99,7 @@ cmake.exe -G "Visual Studio 11 2012" ^
 	-DQT_UIC_EXECUTABLE=%QT_HOST_PATH%\bin\uic.exe ^
 	%QT_SOURCE%\browser
 gsar -s"DLL</RuntimeLibrary>" -r"</RuntimeLibrary>" -o endorphin.vcxproj
-msbuild /t:Rebuild "Endorphin.sln" /p:Platform="Toradex_CE800" /p:Configuration="Release"
+msbuild /v:minimal /t:Rebuild "Endorphin.sln" /p:Platform="Toradex_CE800" /p:Configuration="Release"
 CD %QT_SOURCE%\browser
 CALL rcupdate.bat "%QT_BUILD%\browser\Release\endorphin.exe"
 MKDIR %CE_ARCH:~0,3%_800
