@@ -54,7 +54,7 @@ SET "LIB=%CE_SDKDIR%\crt\Lib\%CE_ARCH:~0,3%;%CE_SDKDIR%\Lib\%CE_ARCH%\retail;"
 "%QT_TOOLS_PATH%\jom.exe" /C %CONFIGURATION%
 "%QT_TOOLS_PATH%\jom.exe" /C module-qtwebkit-qmake_all
 CD %QT_SOURCE%
-7z.exe a -mx9 -xr!wolfssl_obj %~n0.7z build\wolfssl\DLL* build\wolfssl\wolfssl build\egl %~n0-build qtbase\include\QtCore\qconfig.h qtbase\include\QtCore\qfeatures.h qtbase\include\QtCore\QtConfig qtwebkit\Source\JavaScriptCore\disassembler\udis86\*.pyc qtwebkit\Source\WebCore\inspector\*.pyc qtwebkit\Source\WebKit2\Scripts\webkit2\*.pyc icu4c\bin icu4c\include icu4c\lib
+7z.exe a -mx9 -xr!wolfssl_obj -xr!examples -xr!tests %~n0.7z build\wolfssl\DLL* build\wolfssl\wolfssl build\egl %~n0-build qtbase\include\QtCore\qconfig.h qtbase\include\QtCore\qfeatures.h qtbase\include\QtCore\QtConfig qtwebkit\Source\JavaScriptCore\disassembler\udis86\*.pyc qtwebkit\Source\WebCore\inspector\*.pyc qtwebkit\Source\WebKit2\Scripts\webkit2\*.pyc icu4c\bin icu4c\include icu4c\lib
 
 GOTO :eof
 
@@ -127,4 +127,4 @@ COPY "%OPENSSL_LIB%\wolfssl.dll" %CE_ARCH:~0,3%_800
 FOR /F %%X IN ('git describe') DO 7z.exe a -mx9 browser_%%X.7z ARM_800 X86_800 LICENSE.GPL2 piimake.bat
 
 CD %QT_SOURCE%
-7z.exe a -mx9 -xr!.obj %~n0.7z %~n0-build
+7z.exe a -mx9 -xr!.obj -xr!examples -xr!tests %~n0.7z %~n0-build
