@@ -127,4 +127,4 @@ COPY "%OPENSSL_LIB%\wolfssl.dll" %CE_ARCH:~0,3%_800
 FOR /F %%X IN ('git describe') DO 7z.exe a -mx9 browser_%%X.7z ARM_800 X86_800 LICENSE.GPL2 piimake.bat
 
 CD %QT_SOURCE%
-7z.exe a -mx9 -xr!.obj -xr!examples -xr!tests %~n0.7z %~n0-build
+7z.exe a -mx9 -xr!.obj %~n0.7z %~n0-build\qtbase\bin\Qt5WebKit*.* %~n0-build\qtbase\lib\Qt5WebKit*.* %~n0-build\qtwebkit %~n0-build\browser
