@@ -21,8 +21,8 @@ qtHaveModule(widgets) {
 mingw: DEFINES += NO_DSHOW_STRSAFE
 
 !config_wmf: include(player/player.pri)
-include(camera/camera.pri)
+# include(camera/camera.pri)
 
 OTHER_FILES += \
     directshow.json \
-    directshow_camera.json
+    # directshow_camera.json

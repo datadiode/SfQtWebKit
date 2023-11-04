@@ -50,7 +50,7 @@ msbuild /v:minimal /t:Rebuild "%~dp0wolfssl\wolfssl64.sln" /p:Platform="Compact2
 
 SETLOCAL
 	SET "INCLUDE=%INCLUDE%;%OPENSSL_INC%;"
-	CALL %QT_SOURCE%\configure.bat -opensource -confirm-license -rtti -no-harfbuzz -ssl -openssl-linked OPENSSL_LIBS="%OPENSSL_LIBS%" -icu -opengl es2 -nomake tests -nomake examples -nomake tools -skip translations -skip qtdoc -skip qt3d -skip qtsvg -skip qtxmlpatterns -skip qtenginio -skip qtconnectivity -skip qtserialport -skip qttools -skip qtwayland -skip qtwebchannel -skip qtwebsockets -skip qtdeclarative -skip qtquick1 -skip qtscript -skip qtwebkit-examples -platform win32-msvc2012 -xplatform %QMAKESPEC% -release
+	CALL %QT_SOURCE%\configure.bat -opensource -confirm-license -rtti -no-harfbuzz -no-wmf-backend -ssl -openssl-linked OPENSSL_LIBS="%OPENSSL_LIBS%" -icu -opengl es2 -nomake tests -nomake examples -nomake tools -skip translations -skip qtdoc -skip qt3d -skip qtsvg -skip qtxmlpatterns -skip qtenginio -skip qtconnectivity -skip qtserialport -skip qttools -skip qtwayland -skip qtwebchannel -skip qtwebsockets -skip qtdeclarative -skip qtquick1 -skip qtscript -skip qtwebkit-examples -platform win32-msvc2012 -xplatform %QMAKESPEC% -release
 	REM Change QT_QPA_DEFAULT_PLATFORM_NAME from "windows" to "windows:fontengine=freetype"
 	gsar -s:x20QT_QPA_DEFAULT_PLATFORM_NAME:x20:x22windows:x22 -r:x20QT_QPA_DEFAULT_PLATFORM_NAME:x20:x22windows::fontengine=freetype:x22 -o "%QT_BUILD%\qtBase\src\corelib\global\qconfig.h"
 ENDLOCAL
@@ -113,6 +113,7 @@ CALL rcupdate.bat "%QT_BUILD%\browser\MinSizeRel\endorphin.exe"
 MKDIR %CE_ARCH:~0,3%_800
 MKDIR %CE_ARCH:~0,3%_800\imageformats
 MKDIR %CE_ARCH:~0,3%_800\platforms
+MKDIR %CE_ARCH:~0,3%_800\mediaservice
 COPY "%QT_BUILD%\browser\MinSizeRel\endorphin.exe" %CE_ARCH:~0,3%_800
 COPY "%QT_BUILD%\qtbase\lib\Qt5Core.dll" %CE_ARCH:~0,3%_800
 COPY "%QT_BUILD%\qtbase\lib\Qt5Gui.dll" %CE_ARCH:~0,3%_800
@@ -128,6 +129,7 @@ COPY "%QT_BUILD%\qtbase\lib\Qt5WebKitWidgets.dll" %CE_ARCH:~0,3%_800
 COPY "%QT_BUILD%\qtbase\lib\Qt5Widgets.dll" %CE_ARCH:~0,3%_800
 COPY "%QT_BUILD%\qtbase\plugins\imageformats\*.dll" %CE_ARCH:~0,3%_800\imageformats
 COPY "%QT_BUILD%\qtbase\plugins\platforms\qwindows.dll" %CE_ARCH:~0,3%_800\platforms
+COPY "%QT_BUILD%\qtbase\plugins\mediaservice\dsengine.dll" %CE_ARCH:~0,3%_800\mediaservice
 COPY "%ICU_DIST%\bin\Compact2013_SDK_GSeries\icudt56.dll" %CE_ARCH:~0,3%_800
 COPY "%ICU_DIST%\bin\Compact2013_SDK_GSeries\icuin56.dll" %CE_ARCH:~0,3%_800
 COPY "%ICU_DIST%\bin\Compact2013_SDK_GSeries\icuuc56.dll" %CE_ARCH:~0,3%_800

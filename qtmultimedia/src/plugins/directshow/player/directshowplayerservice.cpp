@@ -33,23 +33,20 @@
 
 #include "directshowplayerservice.h"
 
-#include "directshowaudioendpointcontrol.h"
 #include "directshowiosource.h"
 #include "directshowmetadatacontrol.h"
 #include "directshowplayercontrol.h"
 #include "directshowvideorenderercontrol.h"
-#if defined(HAVE_WIDGETS) && !defined(Q_WS_SIMULATOR)
-#include "vmr9videowindowcontrol.h"
-#endif
 
 #ifndef QT_NO_WMSDK
-#include <wmsdk.h>
+#include <wmsdkidl.h>
 #endif
 
 #include "qmediacontent.h"
 
 #include <QtCore/qcoreapplication.h>
 #include <QtCore/qdatetime.h>
+#include <QtCore/qdir.h>
 #include <QtCore/qthread.h>
 #include <QtCore/qvarlengtharray.h>
 
@@ -79,10 +76,6 @@ DirectShowPlayerService::DirectShowPlayerService(QObject *parent)
     , m_playerControl(0)
     , m_metaDataControl(0)
     , m_videoRendererControl(0)
-#if defined(HAVE_WIDGETS) && !defined(Q_WS_SIMULATOR)
-    , m_videoWindowControl(0)
-#endif
-    , m_audioEndpointControl(0)
     , m_taskThread(0)
     , m_loop(qt_directShowEventLoop())
     , m_pendingTasks(0)
@@ -105,8 +98,6 @@ DirectShowPlayerService::DirectShowPlayerService(QObject *parent)
 {
     m_playerControl = new DirectShowPlayerControl(this);
     m_metaDataControl = new DirectShowMetaDataControl(this);
-    m_audioEndpointControl = new DirectShowAudioEndpointControl(this);
-
     m_taskThread = new DirectShowPlayerServiceThread(this);
     m_taskThread->start();
 }
@@ -136,12 +127,8 @@ DirectShowPlayerService::~DirectShowPlayerService()
     }
 
     delete m_playerControl;
-    delete m_audioEndpointControl;
     delete m_metaDataControl;
     delete m_videoRendererControl;
-#if defined(HAVE_WIDGETS) && !defined(Q_WS_SIMULATOR)
-    delete m_videoWindowControl;
-#endif
 
     ::CloseHandle(m_taskHandle);
 }
@@ -150,16 +137,10 @@ QMediaControl *DirectShowPlayerService::requestControl(const char *name)
 {
     if (qstrcmp(name, QMediaPlayerControl_iid) == 0) {
         return m_playerControl;
-    } else if (qstrcmp(name, QAudioOutputSelectorControl_iid) == 0) {
-        return m_audioEndpointControl;
     } else if (qstrcmp(name, QMetaDataReaderControl_iid) == 0) {
         return m_metaDataControl;
     } else if (qstrcmp(name, QVideoRendererControl_iid) == 0) {
-#if defined(HAVE_WIDGETS) && !defined(Q_WS_SIMULATOR)
-        if (!m_videoRendererControl && !m_videoWindowControl) {
-#else
         if (!m_videoRendererControl) {
-#endif
             m_videoRendererControl = new DirectShowVideoRendererControl(m_loop);
 
             connect(m_videoRendererControl, SIGNAL(filterChanged()),
@@ -167,16 +148,6 @@ QMediaControl *DirectShowPlayerService::requestControl(const char *name)
 
             return m_videoRendererControl;
         }
-#if defined(HAVE_WIDGETS) && !defined(Q_WS_SIMULATOR)
-    } else if (qstrcmp(name, QVideoWindowControl_iid) == 0) {
-        if (!m_videoRendererControl && !m_videoWindowControl) {
-            m_videoWindowControl = new Vmr9VideoWindowControl;
-
-            setVideoOutput(m_videoWindowControl->filter());
-
-            return m_videoWindowControl;
-        }
-#endif
     }
     return 0;
 }
@@ -192,14 +163,6 @@ void DirectShowPlayerService::releaseControl(QMediaControl *control)
         delete m_videoRendererControl;
 
         m_videoRendererControl = 0;
-#if defined(HAVE_WIDGETS) && !defined(Q_WS_SIMULATOR)
-    } else if (control == m_videoWindowControl) {
-        setVideoOutput(0);
-
-        delete m_videoWindowControl;
-
-        m_videoWindowControl = 0;
-#endif
     }
 }
 
@@ -235,12 +198,9 @@ void DirectShowPlayerService::load(const QMediaContent &media, QIODevice *stream
         m_graphStatus = InvalidMedia;
         m_error = QMediaPlayer::ResourceError;
     } else {
-        // {36b73882-c2c8-11cf-8b46-00805f6cef60}
-        static const GUID iid_IFilterGraph2 = {
-            0x36b73882, 0xc2c8, 0x11cf, {0x8b, 0x46, 0x00, 0x80, 0x5f, 0x6c, 0xef, 0x60} };
         m_graphStatus = Loading;
 
-        m_graph = com_new<IFilterGraph2>(CLSID_FilterGraph, iid_IFilterGraph2);
+        m_graph = com_new<IFilterGraph2>(CLSID_FilterGraph, IID_IFilterGraph2);
 
         if (stream)
             m_pendingTasks = SetStreamSource;
@@ -257,46 +217,76 @@ void DirectShowPlayerService::load(const QMediaContent &media, QIODevice *stream
     updateStatus();
 }
 
+static IBaseFilter *findBasicAudio(IBaseFilter *filter)
+{
+    if (IBasicAudio *ba = com_cast<IBasicAudio>(filter, IID_IBasicAudio)) {
+        ba->Release();
+        return filter;
+    }
+    IEnumPins *pins = 0;
+    if (SUCCEEDED(filter->EnumPins(&pins))) {
+        for (IPin *pin = 0; pins->Next(1, &pin, 0) == S_OK; pin->Release()) {
+            PIN_DIRECTION direction;
+            IPin *peer = 0;
+            if (pin->QueryDirection(&direction) == S_OK && direction == PINDIR_OUTPUT && pin->ConnectedTo(&peer) == S_OK) {
+                PIN_INFO peerInfo;
+                if (SUCCEEDED(peer->QueryPinInfo(&peerInfo)) && peerInfo.pFilter) {
+                    if (IBaseFilter *filter = findBasicAudio(peerInfo.pFilter)) {
+                        peer->Release();
+                        pins->Release();
+                        pin->Release();
+                        return filter;
+                    }
+                    peerInfo.pFilter->Release();
+                }
+                peer->Release();
+            }
+        }
+        pins->Release();
+    }
+    return 0;
+}
+
 void DirectShowPlayerService::doSetUrlSource(QMutexLocker *locker)
 {
-    IBaseFilter *source = 0;
-
     QMediaResource resource = m_resources.takeFirst();
     m_url = resource.url();
+    QString url = m_url.isLocalFile() ? QDir::toNativeSeparators(m_url.toLocalFile()) : m_url.toString();
 
-    HRESULT hr = E_FAIL;
-    if (m_url.scheme() == QLatin1String("http") || m_url.scheme() == QLatin1String("https")) {
-        static const GUID clsid_WMAsfReader = {
-            0x187463a0, 0x5bb7, 0x11d3, {0xac, 0xbe, 0x00, 0x80, 0xc7, 0x5e, 0x24, 0x6e} };
+    locker->unlock();
 
-        // {56a868a6-0ad4-11ce-b03a-0020af0ba770}
-        static const GUID iid_IFileSourceFilter = {
-            0x56a868a6, 0x0ad4, 0x11ce, {0xb0, 0x3a, 0x00, 0x20, 0xaf, 0x0b, 0xa7, 0x70} };
-
-        if (IFileSourceFilter *fileSource = com_new<IFileSourceFilter>(
-                clsid_WMAsfReader, iid_IFileSourceFilter)) {
-            locker->unlock();
-            hr = fileSource->Load(reinterpret_cast<const OLECHAR *>(m_url.toString().utf16()), 0);
-
-            if (SUCCEEDED(hr)) {
-                source = com_cast<IBaseFilter>(fileSource, IID_IBaseFilter);
-
-                if (!SUCCEEDED(hr = m_graph->AddFilter(source, L"Source")) && source) {
-                    source->Release();
-                    source = 0;
+    if (IFilterGraph2 *graph = com_new<IFilterGraph2>(CLSID_FilterGraph, IID_IFilterGraph2)) {
+        IBaseFilter *filter = 0;
+        graph->AddSourceFilter(reinterpret_cast<const OLECHAR *>(url.utf16()), L"Source", &filter);
+        IEnumPins *pins = 0;
+        if (SUCCEEDED(filter->EnumPins(&pins))) {
+            for (IPin *pin = 0; pins->Next(1, &pin, 0) == S_OK; pin->Release()) {
+                PIN_DIRECTION direction;
+                if (pin->QueryDirection(&direction) == S_OK && direction == PINDIR_OUTPUT) {
+                    graph->Render(pin);
+                    IPin *peer = 0;
+                    if (pin->ConnectedTo(&peer) == S_OK) {
+                        PIN_INFO peerInfo;
+                        if (SUCCEEDED(peer->QueryPinInfo(&peerInfo)) && peerInfo.pFilter) {
+                            if (IBaseFilter *filter = findBasicAudio(peerInfo.pFilter)) {
+                                setAudioOutput(filter);
+                            }
+                            peerInfo.pFilter->Release();
+                        }
+                        peer->Release();
+                    }
                 }
             }
-            fileSource->Release();
-            locker->relock();
+            pins->Release();
         }
+        filter->Release();
+        graph->Release();
     }
 
-    if (!SUCCEEDED(hr)) {
-        locker->unlock();
-        hr = m_graph->AddSourceFilter(
-                reinterpret_cast<const OLECHAR *>(m_url.toString().utf16()), L"Source", &source);
-        locker->relock();
-    }
+    IBaseFilter *source = 0;
+    HRESULT hr = m_graph->AddSourceFilter(reinterpret_cast<const OLECHAR *>(url.utf16()), L"Source", &source);
+
+    locker->relock();
 
     if (SUCCEEDED(hr)) {
         m_executedTasks = SetSource;
@@ -419,14 +409,14 @@ void DirectShowPlayerService::doRender(QMutexLocker *locker)
                     IPin *peer = 0;
                     if (pin->ConnectedTo(&peer) == S_OK) {
                         PIN_INFO peerInfo;
-                        if (SUCCEEDED(peer->QueryPinInfo(&peerInfo)))
+                        if (SUCCEEDED(peer->QueryPinInfo(&peerInfo)) && peerInfo.pFilter)
                             filters.append(peerInfo.pFilter);
                         peer->Release();
                     } else {
                         locker->unlock();
                         HRESULT hr;
                         if (SUCCEEDED(hr = graph->RenderEx(
-                                pin, /*AM_RENDEREX_RENDERTOEXISTINGRENDERERS*/ 1, 0))) {
+                                pin, AM_RENDEREX_RENDERTOEXISTINGRENDERERS, 0))) {
                             rendered = true;
                         } else if (renderHr == S_OK || renderHr == VFW_E_NO_DECOMPRESSOR){
                             renderHr = hr;
@@ -605,7 +595,7 @@ int DirectShowPlayerService::findStreamTypes(IBaseFilter *source) const
                             streamTypes |= VideoStream;
                         } else if (SUCCEEDED(pin->ConnectedTo(&peer))) {
                             PIN_INFO peerInfo;
-                            if (SUCCEEDED(peer->QueryPinInfo(&peerInfo)))
+                            if (SUCCEEDED(peer->QueryPinInfo(&peerInfo)) && peerInfo.pFilter)
                                 filters.append(peerInfo.pFilter);
                             peer->Release();
                         }
@@ -664,7 +654,7 @@ void DirectShowPlayerService::play()
 
     if (m_executedTasks & Render) {
         if (m_executedTasks & Stop) {
-            m_atEnd = false;
+            //m_atEnd = false;
             m_position = 0;
             m_pendingTasks |= Seek;
             m_executedTasks ^= Stop;
@@ -708,7 +698,7 @@ void DirectShowPlayerService::pause()
 
     if (m_executedTasks & Render) {
         if (m_executedTasks & Stop) {
-            m_atEnd = false;
+            //m_atEnd = false;
             m_position = 0;
             m_pendingTasks |= Seek;
             m_executedTasks ^= Stop;
@@ -724,7 +714,8 @@ void DirectShowPlayerService::doPause(QMutexLocker *locker)
 {
     if (IMediaControl *control = com_cast<IMediaControl>(m_graph, IID_IMediaControl)) {
         locker->unlock();
-        HRESULT hr = control->Pause();
+        HRESULT hr = m_atEnd ? control->Stop() : control->Pause();
+        m_atEnd = false;
         locker->relock();
 
         control->Release();

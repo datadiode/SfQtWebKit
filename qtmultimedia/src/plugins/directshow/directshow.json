@@ -1,4 +1,4 @@
 {
     "Keys": ["directshow"],
-    "Services": ["org.qt-project.qt.camera", "org.qt-project.qt.mediaplayer"]
+    "Services": ["org.qt-project.qt.mediaplayer"]
 }

@@ -36,7 +36,11 @@
 
 #include <QtCore/qglobal.h>
 
+#include <algorithm>
+using std::min;
+using std::max;
 #include <dshow.h>
+#undef INTERFACE
 
 template <typename T> T *com_cast(IUnknown *unknown, const IID &iid)
 {

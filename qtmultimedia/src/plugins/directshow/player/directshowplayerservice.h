@@ -172,10 +172,6 @@ private:
     DirectShowPlayerControl *m_playerControl;
     DirectShowMetaDataControl *m_metaDataControl;
     DirectShowVideoRendererControl *m_videoRendererControl;
-#if defined(HAVE_WIDGETS) && !defined(Q_WS_SIMULATOR)
-    Vmr9VideoWindowControl *m_videoWindowControl;
-#endif
-    DirectShowAudioEndpointControl *m_audioEndpointControl;
 
     QThread *m_taskThread;
     DirectShowEventLoop *m_loop;

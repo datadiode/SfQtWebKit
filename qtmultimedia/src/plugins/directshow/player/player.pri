@@ -3,7 +3,6 @@ INCLUDEPATH += $$PWD
 DEFINES += QMEDIA_DIRECTSHOW_PLAYER
 
 HEADERS += \
-        $$PWD/directshowaudioendpointcontrol.h \
         $$PWD/directshoweventloop.h \
         $$PWD/directshowglobal.h \
         $$PWD/directshowioreader.h \
@@ -20,7 +19,6 @@ HEADERS += \
         $$PWD/videosurfacefilter.h
 
 SOURCES += \
-        $$PWD/directshowaudioendpointcontrol.cpp \
         $$PWD/directshoweventloop.cpp \
         $$PWD/directshowioreader.cpp \
         $$PWD/directshowiosource.cpp \
@@ -35,19 +33,11 @@ SOURCES += \
         $$PWD/mediasamplevideobuffer.cpp \
         $$PWD/videosurfacefilter.cpp
 
-qtHaveModule(widgets):!simulator {
-    HEADERS += \
-        $$PWD/vmr9videowindowcontrol.h
-
-    SOURCES += \
-        $$PWD/vmr9videowindowcontrol.cpp
-}
-
 config_wshellitem {
     QT += core-private
 } else {
     DEFINES += QT_NO_SHELLITEM
 }
 
-LIBS += -lstrmiids -ldmoguids -luuid -lmsdmo -lole32 -loleaut32 -lgdi32
-
+LIBS += -lstrmiids -ldmoguids -luuid -lmsdmo -lole32 -loleaut32
+!wince: LIBS += -lgdi32

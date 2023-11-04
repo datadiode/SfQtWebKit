@@ -37,7 +37,7 @@ msbuild /v:minimal /t:Rebuild "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /
 
 msbuild /v:minimal /t:Rebuild "%~dp0wolfssl\wolfssl64.sln" /p:Platform="Win32" /p:Configuration="DLL Release"
 
-CALL %QT_SOURCE%\configure.bat -rtti -no-harfbuzz -ssl -openssl-linked OPENSSL_LIBS="%OPENSSL_LIBS%" -icu -opengl desktop -opensource -nomake tests -nomake examples -nomake tools -skip translations -skip qtdoc -skip qt3d -skip qtsvg -skip qtxmlpatterns -skip qtenginio -skip qtconnectivity -skip qtserialport -skip qttools -skip qtwebchannel -skip qtwebsockets -skip qtdeclarative -skip qtquick1 -skip qtscript -skip qtwebkit-examples -confirm-license -platform %QMAKESPEC% -release
+CALL %QT_SOURCE%\configure.bat -rtti -no-harfbuzz -no-wmf-backend -ssl -openssl-linked OPENSSL_LIBS="%OPENSSL_LIBS%" -icu -opengl desktop -opensource -nomake tests -nomake examples -nomake tools -skip translations -skip qtdoc -skip qt3d -skip qtsvg -skip qtxmlpatterns -skip qtenginio -skip qtconnectivity -skip qtserialport -skip qttools -skip qtwebchannel -skip qtwebsockets -skip qtdeclarative -skip qtquick1 -skip qtscript -skip qtwebkit-examples -confirm-license -platform %QMAKESPEC% -release
 
 "%QT_TOOLS_PATH%\jom.exe" /C %CONFIGURATION%
 "%QT_TOOLS_PATH%\jom.exe" /C module-qtwebkit-qmake_all
@@ -80,6 +80,7 @@ CALL rcupdate.bat "%QT_BUILD%\browser\Release\endorphin.exe"
 MKDIR WIN32
 MKDIR WIN32\imageformats
 MKDIR WIN32\platforms
+MKDIR WIN32\mediaservice
 COPY "%QT_BUILD%\browser\Release\endorphin.exe" WIN32
 COPY "%QT_BUILD%\qtbase\lib\Qt5Core.dll" WIN32
 COPY "%QT_BUILD%\qtbase\lib\Qt5Gui.dll" WIN32
@@ -96,6 +97,7 @@ COPY "%QT_BUILD%\qtbase\lib\Qt5WebKitWidgets.dll" WIN32
 COPY "%QT_BUILD%\qtbase\lib\Qt5Widgets.dll" WIN32
 COPY "%QT_BUILD%\qtbase\plugins\imageformats\*.dll" WIN32\imageformats
 COPY "%QT_BUILD%\qtbase\plugins\platforms\qwindows.dll" WIN32\platforms
+COPY "%QT_BUILD%\qtbase\plugins\mediaservice\dsengine.dll" WIN32\mediaservice
 COPY "%ICU_DIST%\bin\icudt56.dll" WIN32
 COPY "%ICU_DIST%\bin\icuin56.dll" WIN32
 COPY "%ICU_DIST%\bin\icuuc56.dll" WIN32
