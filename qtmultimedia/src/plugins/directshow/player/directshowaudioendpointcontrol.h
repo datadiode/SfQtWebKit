@@ -3,7 +3,7 @@
 ** Copyright (C) 2015 The Qt Company Ltd.
 ** Contact: http://www.qt.io/licensing/
 **
-** This file is part of the Qt Mobility Components.
+** This file is part of the Qt Toolkit.
 **
 ** $QT_BEGIN_LICENSE:LGPL21$
 ** Commercial License Usage
@@ -31,13 +31,44 @@
 **
 ****************************************************************************/
 
+#ifndef DIRECTSHOWAUDIOENDPOINTCONTROL_H
+#define DIRECTSHOWAUDIOENDPOINTCONTROL_H
+
+#include "qaudiooutputselectorcontrol.h"
+
 #include <dshow.h>
-#ifndef _WIN32_WCE
-#include <d3d9.h>
-#include <vmr9.h>
+
+class DirectShowPlayerService;
+
+QT_USE_NAMESPACE
+
+class DirectShowAudioEndpointControl : public QAudioOutputSelectorControl
+{
+    Q_OBJECT
+public:
+    DirectShowAudioEndpointControl(DirectShowPlayerService *service, QObject *parent = 0);
+    ~DirectShowAudioEndpointControl();
+
+    QList<QString> availableOutputs() const;
+
+    QString outputDescription(const QString &name) const;
+
+    QString defaultOutput() const;
+    QString activeOutput() const;
+
+    void setActiveOutput(const QString& name);
+
+private:
+    void updateEndpoints();
+
+    DirectShowPlayerService *m_service;
+    IBindCtx *m_bindContext;
+    ICreateDevEnum *m_deviceEnumerator;
+
+    QMap<QString, IMoniker *> m_devices;
+    QString m_defaultEndpoint;
+    QString m_activeEndpoint;
+};
+
 #endif
 
-int main(int, char**)
-{
-    return 0;
-}

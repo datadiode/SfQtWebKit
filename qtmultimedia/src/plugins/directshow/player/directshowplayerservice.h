@@ -34,6 +34,8 @@
 #ifndef DIRECTSHOWPLAYERSERVICE_H
 #define DIRECTSHOWPLAYERSERVICE_H
 
+#include <dshow.h>
+
 #include "qmediaplayer.h"
 #include "qmediaresource.h"
 #include "qmediaservice.h"
@@ -51,12 +53,10 @@ class DirectShowAudioEndpointControl;
 class DirectShowMetaDataControl;
 class DirectShowPlayerControl;
 class DirectShowVideoRendererControl;
-#if defined(HAVE_WIDGETS) && !defined(Q_WS_SIMULATOR)
-class Vmr9VideoWindowControl;
-#endif
 
 QT_BEGIN_NAMESPACE
 class QMediaContent;
+class QVideoWindowControl;
 QT_END_NAMESPACE
 
 QT_USE_NAMESPACE
@@ -170,8 +170,14 @@ private:
     };
 
     DirectShowPlayerControl *m_playerControl;
+#ifndef Q_OS_WINCE
     DirectShowMetaDataControl *m_metaDataControl;
+#endif
     DirectShowVideoRendererControl *m_videoRendererControl;
+#ifndef Q_OS_WINCE
+    QVideoWindowControl *m_videoWindowControl;
+    DirectShowAudioEndpointControl *m_audioEndpointControl;
+#endif
 
     QThread *m_taskThread;
     DirectShowEventLoop *m_loop;
@@ -190,10 +196,12 @@ private:
     int m_streamTypes;
     qreal m_rate;
     qint64 m_position;
+    qint64 m_seekPosition;
     qint64 m_duration;
     bool m_buffering;
     bool m_seekable;
     bool m_atEnd;
+    bool m_dontCacheNextSeekResult;
     QMediaTimeRange m_playbackRange;
     QUrl m_url;
     QMediaResourceList m_resources;

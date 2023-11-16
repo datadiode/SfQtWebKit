@@ -34,19 +34,27 @@
 #ifndef DIRECTSHOWGLOBAL_H
 #define DIRECTSHOWGLOBAL_H
 
-#include <QtCore/qglobal.h>
-
-#include <algorithm>
-using std::min;
-using std::max;
 #include <dshow.h>
-#undef INTERFACE
+
+#include <QtCore/qglobal.h>
 
 template <typename T> T *com_cast(IUnknown *unknown, const IID &iid)
 {
     T *iface = 0;
     return unknown && unknown->QueryInterface(iid, reinterpret_cast<void **>(&iface)) == S_OK
         ? iface
+        : 0;
+}
+
+template <typename T> T *com_new(const IID &clsid)
+{
+    T *object = 0;
+    return CoCreateInstance(
+            clsid,
+            NULL,
+            CLSCTX_INPROC_SERVER,
+            IID_PPV_ARGS(&object)) == S_OK
+        ? object
         : 0;
 }
 
@@ -104,6 +112,7 @@ DECLARE_INTERFACE_(IFileSourceFilter ,IUnknown)
 
 #ifndef __IAMOpenProgress_INTERFACE_DEFINED__
 #define __IAMOpenProgress_INTERFACE_DEFINED__
+#undef INTERFACE
 #define INTERFACE IAMOpenProgress
 DECLARE_INTERFACE_(IAMOpenProgress ,IUnknown)
 {

@@ -34,12 +34,14 @@
 #ifndef DIRECTSHOWVIDEORENDERERCONTROL_H
 #define DIRECTSHOWVIDEORENDERERCONTROL_H
 
-#include "qvideorenderercontrol.h"
-
 #include <dshow.h>
 
+#include "qvideorenderercontrol.h"
+
 class DirectShowEventLoop;
-class VideoSurfaceFilter;
+#ifdef HAVE_EVR
+class EVRCustomPresenter;
+#endif
 
 QT_USE_NAMESPACE
 
@@ -61,7 +63,10 @@ Q_SIGNALS:
 private:
     DirectShowEventLoop *m_loop;
     QAbstractVideoSurface *m_surface;
-    VideoSurfaceFilter *m_filter;
+    IBaseFilter *m_filter;
+#ifdef HAVE_EVR
+    EVRCustomPresenter *m_evrPresenter;
+#endif
 };
 
 #endif

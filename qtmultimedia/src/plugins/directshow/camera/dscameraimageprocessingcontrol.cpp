@@ -1,9 +1,9 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
+** Copyright (C) 2015 Denis Shienkov <denis.shienkov@gmail.com>
 ** Contact: http://www.qt.io/licensing/
 **
-** This file is part of the Qt Mobility Components.
+** This file is part of the Qt Toolkit.
 **
 ** $QT_BEGIN_LICENSE:LGPL21$
 ** Commercial License Usage
@@ -31,13 +31,44 @@
 **
 ****************************************************************************/
 
-#include <dshow.h>
-#ifndef _WIN32_WCE
-#include <d3d9.h>
-#include <vmr9.h>
-#endif
+#include "dscameraimageprocessingcontrol.h"
+#include "dscamerasession.h"
 
-int main(int, char**)
+QT_BEGIN_NAMESPACE
+
+DSCameraImageProcessingControl::DSCameraImageProcessingControl(DSCameraSession *session)
+    : QCameraImageProcessingControl(session)
+    , m_session(session)
 {
-    return 0;
 }
+
+DSCameraImageProcessingControl::~DSCameraImageProcessingControl()
+{
+}
+
+bool DSCameraImageProcessingControl::isParameterSupported(
+        QCameraImageProcessingControl::ProcessingParameter parameter) const
+{
+    return m_session->isImageProcessingParameterSupported(parameter);
+}
+
+bool DSCameraImageProcessingControl::isParameterValueSupported(
+        QCameraImageProcessingControl::ProcessingParameter parameter,
+        const QVariant &value) const
+{
+    return m_session->isImageProcessingParameterValueSupported(parameter, value);
+}
+
+QVariant DSCameraImageProcessingControl::parameter(
+        QCameraImageProcessingControl::ProcessingParameter parameter) const
+{
+    return m_session->imageProcessingParameter(parameter);
+}
+
+void DSCameraImageProcessingControl::setParameter(QCameraImageProcessingControl::ProcessingParameter parameter,
+                                                  const QVariant &value)
+{
+    m_session->setImageProcessingParameter(parameter, value);
+}
+
+QT_END_NAMESPACE

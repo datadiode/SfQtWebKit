@@ -34,9 +34,9 @@
 #ifndef DIRECTSHOWMEDIATYPELIST_H
 #define DIRECTSHOWMEDIATYPELIST_H
 
-#include <QtCore/qvector.h>
-
 #include <dshow.h>
+
+#include <QtCore/qvector.h>
 
 class DirectShowMediaTypeList : public IUnknown
 {
@@ -54,9 +54,11 @@ public:
     virtual HRESULT skipMediaType(int token, int *index, ULONG count);
     virtual HRESULT cloneMediaType(int token, int index, IEnumMediaTypes **enumeration);
 
+protected:
+    QVector<AM_MEDIA_TYPE> m_mediaTypes;
+
 private:
     int m_mediaTypeToken;
-    QVector<AM_MEDIA_TYPE> m_mediaTypes;
 };
 
 #endif

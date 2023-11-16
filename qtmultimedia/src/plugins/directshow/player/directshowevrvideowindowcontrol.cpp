@@ -3,7 +3,7 @@
 ** Copyright (C) 2015 The Qt Company Ltd.
 ** Contact: http://www.qt.io/licensing/
 **
-** This file is part of the Qt Mobility Components.
+** This file is part of the Qt Toolkit.
 **
 ** $QT_BEGIN_LICENSE:LGPL21$
 ** Commercial License Usage
@@ -31,13 +31,31 @@
 **
 ****************************************************************************/
 
-#include <dshow.h>
-#ifndef _WIN32_WCE
-#include <d3d9.h>
-#include <vmr9.h>
-#endif
+#include "directshowevrvideowindowcontrol.h"
 
-int main(int, char**)
+#include "directshowglobal.h"
+
+DirectShowEvrVideoWindowControl::DirectShowEvrVideoWindowControl(QObject *parent)
+    : EvrVideoWindowControl(parent)
+    , m_evrFilter(NULL)
 {
-    return 0;
+}
+
+DirectShowEvrVideoWindowControl::~DirectShowEvrVideoWindowControl()
+{
+    if (m_evrFilter)
+        m_evrFilter->Release();
+}
+
+IBaseFilter *DirectShowEvrVideoWindowControl::filter()
+{
+    if (!m_evrFilter) {
+        m_evrFilter = com_new<IBaseFilter>(clsid_EnhancedVideoRenderer);
+        if (!setEvr(m_evrFilter)) {
+            m_evrFilter->Release();
+            m_evrFilter = NULL;
+        }
+    }
+
+    return m_evrFilter;
 }

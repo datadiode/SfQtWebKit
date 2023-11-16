@@ -35,17 +35,33 @@
 
 #include "videosurfacefilter.h"
 
+#ifdef HAVE_EVR
+#include "evrcustompresenter.h"
+#endif
+
+#include <qabstractvideosurface.h>
+
 DirectShowVideoRendererControl::DirectShowVideoRendererControl(DirectShowEventLoop *loop, QObject *parent)
     : QVideoRendererControl(parent)
     , m_loop(loop)
     , m_surface(0)
     , m_filter(0)
+#ifdef HAVE_EVR
+    , m_evrPresenter(0)
+#endif
 {
 }
 
 DirectShowVideoRendererControl::~DirectShowVideoRendererControl()
 {
-    delete m_filter;
+#ifdef HAVE_EVR
+    if (m_evrPresenter) {
+        m_evrPresenter->setSurface(Q_NULLPTR);
+        m_evrPresenter->Release();
+    }
+#endif
+    if (m_filter)
+        m_filter->Release();
 }
 
 QAbstractVideoSurface *DirectShowVideoRendererControl::surface() const
@@ -55,21 +71,43 @@ QAbstractVideoSurface *DirectShowVideoRendererControl::surface() const
 
 void DirectShowVideoRendererControl::setSurface(QAbstractVideoSurface *surface)
 {
-    if (surface != m_surface) {
-        m_surface = surface;
+    if (m_surface == surface)
+        return;
 
-        VideoSurfaceFilter *existingFilter = m_filter;
+#ifdef HAVE_EVR
+    if (m_evrPresenter) {
+        m_evrPresenter->setSurface(Q_NULLPTR);
+        m_evrPresenter->Release();
+        m_evrPresenter = 0;
+    }
+#endif
 
-        if (surface) {
-            m_filter = new VideoSurfaceFilter(surface, m_loop);
-        } else {
+    if (m_filter) {
+        m_filter->Release();
+        m_filter = 0;
+    }
+
+    m_surface = surface;
+
+    if (m_surface) {
+#ifdef HAVE_EVR
+        m_filter = com_new<IBaseFilter>(clsid_EnhancedVideoRenderer);
+        m_evrPresenter = new EVRCustomPresenter(m_surface);
+        if (!m_evrPresenter->isValid() || !qt_evr_setCustomPresenter(m_filter, m_evrPresenter)) {
+            m_filter->Release();
             m_filter = 0;
+            m_evrPresenter->Release();
+            m_evrPresenter = 0;
         }
 
-        emit filterChanged();
-
-        delete existingFilter;
+        if (!m_filter)
+#endif
+        {
+            m_filter = new VideoSurfaceFilter(m_surface, m_loop);
+        }
     }
+
+    emit filterChanged();
 }
 
 IBaseFilter *DirectShowVideoRendererControl::filter()

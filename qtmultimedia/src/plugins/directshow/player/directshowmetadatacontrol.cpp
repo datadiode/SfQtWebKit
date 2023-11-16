@@ -31,13 +31,20 @@
 **
 ****************************************************************************/
 
+#include <dshow.h>
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+
 #include <QtMultimedia/qmediametadata.h>
 #include <QtCore/qcoreapplication.h>
 #include <QSize>
 #include <qdatetime.h>
 #include <qimage.h>
 
-#include <dshow.h>
 #include <initguid.h>
 #include <qnetwork.h>
 
@@ -362,7 +369,18 @@ static QString convertBSTR(BSTR *string)
     return value;
 }
 
-void DirectShowMetaDataControl::updateGraph(IFilterGraph2 *graph, IBaseFilter *source, const QString &fileSrc)
+void DirectShowMetaDataControl::reset()
+{
+    bool hadMetadata = !m_metadata.isEmpty();
+    m_metadata.clear();
+
+    setMetadataAvailable(false);
+
+    if (hadMetadata)
+        emit metaDataChanged();
+}
+
+void DirectShowMetaDataControl::updateMetadata(IFilterGraph2 *graph, IBaseFilter *source, const QString &fileSrc)
 {
     m_metadata.clear();
 
@@ -568,13 +586,19 @@ void DirectShowMetaDataControl::customEvent(QEvent *event)
     if (event->type() == QEvent::Type(MetaDataChanged)) {
         event->accept();
 
-        bool oldAvailable = m_available;
-        m_available = !m_metadata.isEmpty();
-        if (m_available != oldAvailable)
-            emit metaDataAvailableChanged(m_available);
+        setMetadataAvailable(!m_metadata.isEmpty());
 
         emit metaDataChanged();
     } else {
         QMetaDataReaderControl::customEvent(event);
     }
+}
+
+void DirectShowMetaDataControl::setMetadataAvailable(bool available)
+{
+    if (m_available == available)
+        return;
+
+    m_available = available;
+    emit metaDataAvailableChanged(m_available);
 }

@@ -3,7 +3,7 @@
 ** Copyright (C) 2015 The Qt Company Ltd.
 ** Contact: http://www.qt.io/licensing/
 **
-** This file is part of the Qt Mobility Components.
+** This file is part of the Qt Toolkit.
 **
 ** $QT_BEGIN_LICENSE:LGPL21$
 ** Commercial License Usage
@@ -31,13 +31,25 @@
 **
 ****************************************************************************/
 
-#include <dshow.h>
-#ifndef _WIN32_WCE
-#include <d3d9.h>
-#include <vmr9.h>
-#endif
+#ifndef DIRECTSHOWEVRVIDEOWINDOWCONTROL_H
+#define DIRECTSHOWEVRVIDEOWINDOWCONTROL_H
 
-int main(int, char**)
+#include "evrvideowindowcontrol.h"
+
+struct IBaseFilter;
+
+QT_USE_NAMESPACE
+
+class DirectShowEvrVideoWindowControl : public EvrVideoWindowControl
 {
-    return 0;
-}
+public:
+    DirectShowEvrVideoWindowControl(QObject *parent = 0);
+    ~DirectShowEvrVideoWindowControl();
+
+    IBaseFilter *filter();
+
+private:
+    IBaseFilter *m_evrFilter;
+};
+
+#endif // DIRECTSHOWEVRVIDEOWINDOWCONTROL_H

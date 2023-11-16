@@ -31,6 +31,8 @@
 **
 ****************************************************************************/
 
+#include <dshow.h>
+
 #include <QtCore/qstring.h>
 #include <QtCore/qdebug.h>
 #include <QtCore/QFile>

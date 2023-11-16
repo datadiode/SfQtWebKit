@@ -1,9 +1,9 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
+** Copyright (C) 2015 Denis Shienkov <denis.shienkov@gmail.com>
 ** Contact: http://www.qt.io/licensing/
 **
-** This file is part of the Qt Mobility Components.
+** This file is part of the Qt Toolkit.
 **
 ** $QT_BEGIN_LICENSE:LGPL21$
 ** Commercial License Usage
@@ -31,13 +31,33 @@
 **
 ****************************************************************************/
 
-#include <dshow.h>
-#ifndef _WIN32_WCE
-#include <d3d9.h>
-#include <vmr9.h>
-#endif
+#ifndef DSCAMERAIMAGEPROCESSINGCONTROL_H
+#define DSCAMERAIMAGEPROCESSINGCONTROL_H
 
-int main(int, char**)
+#include <qcamera.h>
+#include <qcameraimageprocessingcontrol.h>
+
+QT_BEGIN_NAMESPACE
+
+class DSCameraSession;
+
+class DSCameraImageProcessingControl : public QCameraImageProcessingControl
 {
-    return 0;
-}
+    Q_OBJECT
+
+public:
+    DSCameraImageProcessingControl(DSCameraSession *session);
+    virtual ~DSCameraImageProcessingControl();
+
+    bool isParameterSupported(ProcessingParameter) const;
+    bool isParameterValueSupported(ProcessingParameter parameter, const QVariant &value) const;
+    QVariant parameter(ProcessingParameter parameter) const;
+    void setParameter(ProcessingParameter parameter, const QVariant &value);
+
+private:
+    DSCameraSession *m_session;
+};
+
+QT_END_NAMESPACE
+
+#endif // DSCAMERAIMAGEPROCESSINGCONTROL_H
