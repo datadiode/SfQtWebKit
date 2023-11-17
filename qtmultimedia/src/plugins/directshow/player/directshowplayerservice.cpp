@@ -701,14 +701,14 @@ void DirectShowPlayerService::play()
     m_pendingTasks |= Play;
 
     if (m_executedTasks & Render) {
-        if (m_executedTasks & Stop) {
+        if (m_atEnd) {
             m_atEnd = false;
-            if (m_seekPosition == -1) {
+            //if (m_seekPosition == -1) {
                 m_dontCacheNextSeekResult = true;
                 m_seekPosition = 0;
                 m_position = 0;
                 m_pendingTasks |= Seek;
-            }
+            //}
             m_executedTasks ^= Stop;
         }
 
@@ -749,14 +749,14 @@ void DirectShowPlayerService::pause()
     m_pendingTasks |= Pause;
 
     if (m_executedTasks & Render) {
-        if (m_executedTasks & Stop) {
+        if (m_atEnd) {
             m_atEnd = false;
-            if (m_seekPosition == -1) {
+            //if (m_seekPosition == -1) {
                 m_dontCacheNextSeekResult = true;
                 m_seekPosition = 0;
                 m_position = 0;
                 m_pendingTasks |= Seek;
-            }
+            //}
             m_executedTasks ^= Stop;
         }
 
@@ -964,8 +964,15 @@ void DirectShowPlayerService::doSeek(QMutexLocker *locker)
                 : QMediaTimeRange();
 
         locker->unlock();
-        seeking->SetPositions(
+        HRESULT hr = seeking->SetPositions(
                 &seekPosition, AM_SEEKING_AbsolutePositioning, 0, AM_SEEKING_NoPositioning);
+        if (FAILED(hr)) {
+            if (IMediaControl *control = com_cast<IMediaControl>(m_graph, IID_IMediaControl)) {
+                control->Stop();
+                control->Release();
+            }
+        }
+
         locker->relock();
 
         if (!m_dontCacheNextSeekResult) {
@@ -1235,8 +1242,8 @@ void DirectShowPlayerService::graphEvent(QMutexLocker *locker)
                 QCoreApplication::postEvent(this, new QEvent(QEvent::Type(StatusChange)));
                 break;
             case EC_COMPLETE:
-                m_executedTasks &= ~(Play | Pause);
-                m_executedTasks |= Stop;
+                //m_executedTasks &= ~(Play | Pause);
+                //m_executedTasks |= Stop;
 
                 m_buffering = false;
                 m_atEnd = true;
