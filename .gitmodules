@@ -4,3 +4,12 @@
 [submodule "icu4c"]
 	path = icu4c
 	url = https://github.com/datadiode/icu4c
+	shallow = true
+[submodule "FFmpeg"]
+	path = FFmpeg
+	url = https://github.com/datadiode/FFmpeg
+	shallow = true
+[submodule "VSYASM"]
+	path = VSYASM
+	url = https://github.com/datadiode/VSYASM
+	shallow = true

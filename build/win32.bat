@@ -10,6 +10,8 @@ CD %~dp0..
 SET QT_SOURCE=%CD%
 SET QT_BUILD=%CD%\%~n0-build
 
+SET FFMPEG_SRC=%QT_SOURCE%\FFmpeg
+SET FFMPEG_LIB=%QT_SOURCE:SfQtWebKit=msvc%\lib\x86
 SET ICU_DIST=%QT_SOURCE%\icu4c
 SET OPENSSL_INC=%~dp0wolfssl;%~dp0wolfssl\wolfssl
 SET OPENSSL_LIB=%~dp0wolfssl\DLL Release\Win32
@@ -32,6 +34,10 @@ GOTO %CONFIGURATION%
 :module-qtlocation-make_first
 :module-qtsensors-make_first
 :module-qtimageformats-make_first
+
+CALL %QT_SOURCE%\VSYASM\install_script.bat %VisualStudioVersion:~0,2% "%VSINSTALLDIR:~0,-1%"
+
+msbuild /v:minimal /t:Rebuild "%QT_SOURCE%\FFmpeg\SMP\ffmpeg.sln" /p:Platform="x86" /p:Configuration="Release"
 
 msbuild /v:minimal /t:Rebuild "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Win32" /p:Configuration="Release"
 
@@ -98,6 +104,7 @@ COPY "%QT_BUILD%\qtbase\lib\Qt5Widgets.dll" WIN32
 COPY "%QT_BUILD%\qtbase\plugins\imageformats\*.dll" WIN32\imageformats
 COPY "%QT_BUILD%\qtbase\plugins\platforms\qwindows.dll" WIN32\platforms
 COPY "%QT_BUILD%\qtbase\plugins\mediaservice\dsengine.dll" WIN32\mediaservice
+COPY "%QT_BUILD%\qtbase\plugins\mediaservice\ffmpeg-*.dll" WIN32\mediaservice
 COPY "%ICU_DIST%\bin\icudt56.dll" WIN32
 COPY "%ICU_DIST%\bin\icuin56.dll" WIN32
 COPY "%ICU_DIST%\bin\icuuc56.dll" WIN32
