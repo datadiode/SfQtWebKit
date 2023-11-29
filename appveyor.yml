@@ -37,6 +37,8 @@ clone_script:
 - 7z.exe x -y *.7z * & exit 0
 - 7z.exe x -y -obrowser browser\*.7z * & exit 0
 - if not "%PLATFORM%" == "win32" call install_wec2013_prerequisites.bat
+- call VSYASM\install_script.bat
+- call VSC99WRAP\install_script.bat
 - del *.7z *.zip *.msi
 
 build_script:

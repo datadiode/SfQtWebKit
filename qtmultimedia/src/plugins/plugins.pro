@@ -31,7 +31,7 @@ win32:!winrt {
 
     config_directshow: SUBDIRS += directshow
     config_wmf: SUBDIRS += wmf
-    !wince: SUBDIRS += ffmpeg
+    !wince|equals(CE_ARCH, "X86"): SUBDIRS += ffmpeg
 }
 
 winrt {

@@ -11,6 +11,8 @@ CD %~dp0..
 SET QT_SOURCE=%CD%
 SET QT_BUILD=%CD%\%~n0-build
 
+SET FFMPEG_SRC=%QT_SOURCE%\FFmpeg
+SET FFMPEG_LIB=%QT_SOURCE%\FFmpeg\SMP\out\Release\Compact2013_SDK_GSeries
 SET ICU_DIST=%QT_SOURCE%\icu4c
 SET OPENSSL_INC=%~dp0wolfssl;%~dp0wolfssl\wolfssl
 SET OPENSSL_LIB=%~dp0wolfssl\DLL Release\Compact2013_SDK_GSeries
@@ -41,6 +43,11 @@ xcopy /I /S /R /Y "%CE_SDKDIR_TORADEX%\Inc\GLES" "egl\Inc\GLES"
 xcopy /I /S /R /Y "%CE_SDKDIR_TORADEX%\Inc\GLES2" "egl\Inc\GLES2"
 xcopy /I /T "%CE_SDKDIR%\Lib" "egl\Lib"
 FOR %%X IN (libegl libglesv2) DO lib /def:%~dp0egl\%%X.def /machine:%CE_ARCH% /out:egl\Lib\%CE_ARCH%\retail\%%X.lib
+
+COPY "%ProgramFiles(x86)%\MSBuild\Microsoft.Cpp\v4.0\V%VisualStudioVersion:~0,2%0\BuildCustomizations\yasm.*" "%ProgramFiles(x86)%\MSBuild\Microsoft.Cpp\v4.0\V110\BuildCustomizations\"
+COPY "%ProgramFiles(x86)%\MSBuild\Microsoft.Cpp\v4.0\V%VisualStudioVersion:~0,2%0\BuildCustomizations\c99wrap.*" "%ProgramFiles(x86)%\MSBuild\Microsoft.Cpp\v4.0\V110\BuildCustomizations\"
+
+msbuild /v:minimal /t:Rebuild "%QT_SOURCE%\FFmpeg\SMP\ffmpeg.sln" /p:Platform="Compact2013_SDK_GSeries" /p:Configuration="Release" /p:YasmPath="%VSINSTALLDIR%VC"\ /p:C99WrapPath="%VSINSTALLDIR%VC"\
 
 "%QT_SOURCE%\sfk198.exe" sel "%QT_SOURCE%\icu4c\source" *.vcxproj *.sln +replace -text "/Compact2013_SDK_86Duino_80B/Compact2013_SDK_GSeries/" -yes > nul
 msbuild /v:minimal /t:Rebuild "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Win32" /p:Configuration="Release" /p:PlatformToolset="v120"
@@ -130,6 +137,7 @@ COPY "%QT_BUILD%\qtbase\lib\Qt5Widgets.dll" %CE_ARCH:~0,3%_800
 COPY "%QT_BUILD%\qtbase\plugins\imageformats\*.dll" %CE_ARCH:~0,3%_800\imageformats
 COPY "%QT_BUILD%\qtbase\plugins\platforms\qwindows.dll" %CE_ARCH:~0,3%_800\platforms
 COPY "%QT_BUILD%\qtbase\plugins\mediaservice\dsengine.dll" %CE_ARCH:~0,3%_800\mediaservice
+COPY "%QT_BUILD%\qtbase\plugins\mediaservice\ffmpeg-*.dll" %CE_ARCH:~0,3%_800\mediaservice
 COPY "%ICU_DIST%\bin\Compact2013_SDK_GSeries\icudt56.dll" %CE_ARCH:~0,3%_800
 COPY "%ICU_DIST%\bin\Compact2013_SDK_GSeries\icuin56.dll" %CE_ARCH:~0,3%_800
 COPY "%ICU_DIST%\bin\Compact2013_SDK_GSeries\icuuc56.dll" %CE_ARCH:~0,3%_800

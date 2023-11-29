@@ -13,3 +13,7 @@
 	path = VSYASM
 	url = https://github.com/datadiode/VSYASM
 	shallow = true
+[submodule "VSC99WRAP"]
+	path = VSC99WRAP
+	url = https://github.com/datadiode/VSC99WRAP
+	shallow = true

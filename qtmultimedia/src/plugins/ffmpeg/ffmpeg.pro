@@ -22,7 +22,9 @@ mac: LIBS += -L$$MYLIBDIR/osx/lib
 # Link to the right libraries
 ###################################################################################
 
-win32: LIBS += -lcrypt32 -ladvapi32 -lole32 -llibavcodec -llibavformat -llibavutil -llibswscale -llibswresample
+win32: LIBS += -lcrypt32 -lole32 -llibavcodec -llibavformat -llibavutil -llibswscale -llibswresample
+win32:!wince: LIBS += -ladvapi32
+
 mac: LIBS += -lavcodec -lavformat -lavutil -lswscale -lswresample
 
 ###################################################################################

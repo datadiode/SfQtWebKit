@@ -11,7 +11,7 @@ SET QT_SOURCE=%CD%
 SET QT_BUILD=%CD%\%~n0-build
 
 SET FFMPEG_SRC=%QT_SOURCE%\FFmpeg
-SET FFMPEG_LIB=%QT_SOURCE:SfQtWebKit=msvc%\lib\x86
+SET FFMPEG_LIB=%QT_SOURCE%\FFmpeg\SMP\out\Release\Win32
 SET ICU_DIST=%QT_SOURCE%\icu4c
 SET OPENSSL_INC=%~dp0wolfssl;%~dp0wolfssl\wolfssl
 SET OPENSSL_LIB=%~dp0wolfssl\DLL Release\Win32
@@ -36,6 +36,7 @@ GOTO %CONFIGURATION%
 :module-qtimageformats-make_first
 
 CALL %QT_SOURCE%\VSYASM\install_script.bat %VisualStudioVersion:~0,2% "%VSINSTALLDIR:~0,-1%"
+CALL %QT_SOURCE%\VSC99WRAP\install_script.bat %VisualStudioVersion:~0,2% "%VSINSTALLDIR:~0,-1%"
 
 msbuild /v:minimal /t:Rebuild "%QT_SOURCE%\FFmpeg\SMP\ffmpeg.sln" /p:Platform="x86" /p:Configuration="Release"
 
