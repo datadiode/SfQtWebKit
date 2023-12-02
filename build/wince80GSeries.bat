@@ -47,6 +47,8 @@ FOR %%X IN (libegl libglesv2) DO lib /def:%~dp0egl\%%X.def /machine:%CE_ARCH% /o
 COPY "%ProgramFiles(x86)%\MSBuild\Microsoft.Cpp\v4.0\V%VisualStudioVersion:~0,2%0\BuildCustomizations\yasm.*" "%ProgramFiles(x86)%\MSBuild\Microsoft.Cpp\v4.0\V110\BuildCustomizations\"
 COPY "%ProgramFiles(x86)%\MSBuild\Microsoft.Cpp\v4.0\V%VisualStudioVersion:~0,2%0\BuildCustomizations\c99wrap.*" "%ProgramFiles(x86)%\MSBuild\Microsoft.Cpp\v4.0\V110\BuildCustomizations\"
 
+xcopy /Y /S /I %QT_SOURCE%\build\wolfssl\wolfssl %QT_SOURCE%\prebuilt\include\wolfssl
+
 msbuild /v:minimal /t:Rebuild "%QT_SOURCE%\FFmpeg\SMP\ffmpeg.sln" /p:Platform="Compact2013_SDK_GSeries" /p:Configuration="Release" /p:YasmPath="%VSINSTALLDIR%VC"\ /p:C99WrapPath="%VSINSTALLDIR%VC"\
 
 "%QT_SOURCE%\sfk198.exe" sel "%QT_SOURCE%\icu4c\source" *.vcxproj *.sln +replace -text "/Compact2013_SDK_86Duino_80B/Compact2013_SDK_GSeries/" -yes > nul

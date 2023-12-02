@@ -38,6 +38,8 @@ GOTO %CONFIGURATION%
 CALL %QT_SOURCE%\VSYASM\install_script.bat %VisualStudioVersion:~0,2% "%VSINSTALLDIR:~0,-1%"
 CALL %QT_SOURCE%\VSC99WRAP\install_script.bat %VisualStudioVersion:~0,2% "%VSINSTALLDIR:~0,-1%"
 
+xcopy /Y /S /I %QT_SOURCE%\build\wolfssl\wolfssl %QT_SOURCE%\prebuilt\include\wolfssl
+
 msbuild /v:minimal /t:Rebuild "%QT_SOURCE%\FFmpeg\SMP\ffmpeg.sln" /p:Platform="x86" /p:Configuration="Release"
 
 msbuild /v:minimal /t:Rebuild "%QT_SOURCE%\icu4c\source\allinone\allinone.sln" /p:Platform="Win32" /p:Configuration="Release"
